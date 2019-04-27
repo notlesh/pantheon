@@ -116,6 +116,8 @@ public class UpnpNatManager {
   /**
    * Returns the first of the discovered services of the given type, if any.
    *
+   * @param type is the type descriptor of the desired service
+   *
    * @return the first instance of the given type, or null if none
    */
   @SuppressWarnings("rawtypes")
@@ -134,7 +136,11 @@ public class UpnpNatManager {
   }
 
   /**
-   * Returns a CompletableFuture that will wait for the given service type to be discovered
+   * Returns a CompletableFuture that will wait for the given service type to be discovered.
+   * No new query will be performed, and if the service has already been discovered, the future
+   * will complete in the very near future.
+   *
+   * @param serviceType is the service type to wait to be discovered.
    *
    * @return future that will return the desired service once it is discovered, or null if the
    *     future is cancelled.
@@ -236,6 +242,8 @@ public class UpnpNatManager {
   /**
    * Sends a UPnP request to the discovered IGD to request a port forward.
    *
+   * @param portMapping is a portMapping object describing the desired port mapping parameters.
+   *
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   public CompletableFuture<String> requestPortForward(final PortMapping portMapping) {
@@ -271,12 +279,17 @@ public class UpnpNatManager {
             });
   }
 
-  /** Recursively crawls the given device to look for specific services. */
+  /**
+   * Recursively crawls the given device to look for specific services.
+   *
+   * @param device is the device to inspect for desired services.
+   * @param serviceTypes is a set of service types to look for.
+   */
   @SuppressWarnings("rawtypes")
-  protected void inspectDeviceRecursive(final Device device, final Set<String> serviceIds) {
+  protected void inspectDeviceRecursive(final Device device, final Set<String> serviceTypes) {
     for (Service service : device.getServices()) {
       String serviceType = service.getServiceType().getType();
-      if (serviceIds.contains(serviceType)) {
+      if (serviceTypes.contains(serviceType)) {
         // TODO: handle case where service is already "recognized" as this could lead to
         // some odd bugs
         recognizedServices.put(serviceType, service);
@@ -284,7 +297,7 @@ public class UpnpNatManager {
       }
     }
     for (Device subDevice : device.getEmbeddedDevices()) {
-      inspectDeviceRecursive(subDevice, serviceIds);
+      inspectDeviceRecursive(subDevice, serviceTypes);
     }
   }
 
@@ -297,7 +310,12 @@ public class UpnpNatManager {
     }
   }
 
-  /** Recursively print out the devices and services known to the registry */
+  /**
+   * Recursively print out the devices and services known to the registry.
+   *
+   * @param device is the device whose contents will be printed.
+   * @param indent is the indentation string to prepend to the printed information.
+   */
   @SuppressWarnings("rawtypes")
   public void printDeviceRecursive(final Device device, final String indent) {
     String nextIndent = "|    ";
