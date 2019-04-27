@@ -117,7 +117,6 @@ public class UpnpNatManager {
    * Returns the first of the discovered services of the given type, if any.
    *
    * @param type is the type descriptor of the desired service
-   *
    * @return the first instance of the given type, or null if none
    */
   @SuppressWarnings("rawtypes")
@@ -136,12 +135,11 @@ public class UpnpNatManager {
   }
 
   /**
-   * Returns a CompletableFuture that will wait for the given service type to be discovered.
-   * No new query will be performed, and if the service has already been discovered, the future
-   * will complete in the very near future.
+   * Returns a CompletableFuture that will wait for the given service type to be discovered. No new
+   * query will be performed, and if the service has already been discovered, the future will
+   * complete in the very near future.
    *
    * @param serviceType is the service type to wait to be discovered.
-   *
    * @return future that will return the desired service once it is discovered, or null if the
    *     future is cancelled.
    */
@@ -243,7 +241,6 @@ public class UpnpNatManager {
    * Sends a UPnP request to the discovered IGD to request a port forward.
    *
    * @param portMapping is a portMapping object describing the desired port mapping parameters.
-   *
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   public CompletableFuture<String> requestPortForward(final PortMapping portMapping) {
