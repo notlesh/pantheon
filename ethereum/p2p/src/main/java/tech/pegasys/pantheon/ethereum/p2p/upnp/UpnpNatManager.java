@@ -104,7 +104,7 @@ public class UpnpNatManager {
    * @throws IllegalStateException if stopped.
    */
   public void stop() {
-    if (started) {
+    if (!started) {
       throw new IllegalStateException("Cannot stop already-stopped service");
     }
     upnpService.getRegistry().removeListener(registryListener);
