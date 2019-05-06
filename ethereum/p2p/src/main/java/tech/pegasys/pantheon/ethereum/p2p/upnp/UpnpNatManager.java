@@ -29,14 +29,11 @@ import org.jupnp.UpnpServiceImpl;
 import org.jupnp.model.action.ActionInvocation;
 import org.jupnp.model.message.UpnpResponse;
 import org.jupnp.model.message.header.STAllHeader;
-import org.jupnp.model.meta.Device;
-import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.model.meta.LocalDevice;
-import org.jupnp.model.meta.Service;
+import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.model.meta.RemoteService;
 import org.jupnp.model.types.UnsignedIntegerFourBytes;
 import org.jupnp.model.types.UnsignedIntegerTwoBytes;
-import org.jupnp.registry.DefaultRegistryListener;
 import org.jupnp.registry.Registry;
 import org.jupnp.registry.RegistryListener;
 import org.jupnp.support.igd.callback.GetExternalIP;
@@ -110,34 +107,36 @@ public class UpnpNatManager {
         new RegistryListener() {
 
           @Override
-          public void remoteDeviceDiscoveryStarted(final Registry registry, final RemoteDevice device) { }
+          public void remoteDeviceDiscoveryStarted(
+              final Registry registry, final RemoteDevice device) {}
 
           @Override
-          public void remoteDeviceDiscoveryFailed(final Registry registry, final RemoteDevice device, final Exception ex) { }
+          public void remoteDeviceDiscoveryFailed(
+              final Registry registry, final RemoteDevice device, final Exception ex) {}
 
           @Override
-          public void remoteDeviceAdded(final Registry registry, final RemoteDevice device) { 
+          public void remoteDeviceAdded(final Registry registry, final RemoteDevice device) {
             LOG.debug("UPnP Device discovered: " + device.getDetails().getFriendlyName());
             inspectDeviceRecursive(device, recognizedServices.keySet());
           }
 
           @Override
-          public void remoteDeviceUpdated(final Registry registry, final RemoteDevice device) { }
+          public void remoteDeviceUpdated(final Registry registry, final RemoteDevice device) {}
 
           @Override
-          public void remoteDeviceRemoved(final Registry registry, final RemoteDevice device) { }
+          public void remoteDeviceRemoved(final Registry registry, final RemoteDevice device) {}
 
           @Override
-          public void localDeviceAdded(final Registry registry, final LocalDevice device) { }
+          public void localDeviceAdded(final Registry registry, final LocalDevice device) {}
 
           @Override
-          public void localDeviceRemoved(final Registry registry, final LocalDevice device) { }
+          public void localDeviceRemoved(final Registry registry, final LocalDevice device) {}
 
           @Override
-          public void beforeShutdown(final Registry registry) { }
+          public void beforeShutdown(final Registry registry) {}
 
           @Override
-          public void afterShutdown() { }
+          public void afterShutdown() {}
         };
 
     // prime our recognizedServices map so we can use its key-set later
@@ -253,8 +252,8 @@ public class UpnpNatManager {
                     }
 
                     /**
-                     * Because the underlying jupnp library omits generics info
-                     * in this method signature, we must too when we override it.
+                     * Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
                      */
                     @Override
                     @SuppressWarnings("rawtypes")
@@ -291,8 +290,8 @@ public class UpnpNatManager {
                     }
 
                     /**
-                     * Because the underlying jupnp library omits generics info
-                     * in this method signature, we must too when we override it.
+                     * Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
                      */
                     @Override
                     @SuppressWarnings("rawtypes")
@@ -366,8 +365,8 @@ public class UpnpNatManager {
               PortMappingAdd callback =
                   new PortMappingAdd(service, portMapping) {
                     /**
-                     * Because the underlying jupnp library omits generics info
-                     * in this method signature, we must too when we override it.
+                     * Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
                      */
                     @Override
                     @SuppressWarnings("rawtypes")
@@ -377,8 +376,8 @@ public class UpnpNatManager {
                     }
 
                     /**
-                     * Because the underlying jupnp library omits generics info
-                     * in this method signature, we must too when we override it.
+                     * Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
                      */
                     @Override
                     @SuppressWarnings("rawtypes")
