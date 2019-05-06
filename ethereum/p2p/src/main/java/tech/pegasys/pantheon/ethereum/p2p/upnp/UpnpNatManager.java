@@ -15,7 +15,11 @@ package tech.pegasys.pantheon.ethereum.p2p.upnp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,6 +31,8 @@ import org.jupnp.model.message.UpnpResponse;
 import org.jupnp.model.message.header.STAllHeader;
 import org.jupnp.model.meta.Device;
 import org.jupnp.model.meta.Service;
+import org.jupnp.model.types.UnsignedIntegerFourBytes;
+import org.jupnp.model.types.UnsignedIntegerTwoBytes;
 import org.jupnp.registry.DefaultRegistryListener;
 import org.jupnp.registry.Registry;
 import org.jupnp.registry.RegistryListener;
@@ -51,7 +57,42 @@ public class UpnpNatManager {
 
   /** Empty constructor. Creates in instance of UpnpServiceImpl. */
   public UpnpNatManager() {
-    this(new UpnpServiceImpl(new DefaultUpnpServiceConfiguration()));
+    // this(new UpnpServiceImpl(new DefaultUpnpServiceConfiguration()));
+
+    // Workaround for an issue in the jupnp library: the ExecutorService used misconfigures
+    // its ThreadPoolExecutor, causing it to only launch a single thread. This prevents any work
+    // from getting done (effectively a deadlock). The issue is fixed here:
+    //   https://github.com/jupnp/jupnp/pull/117
+    // However, this fix has not made it into any releases yet.
+    // TODO: once a new release is available, remove this @Override
+    this(
+        new UpnpServiceImpl(
+            new DefaultUpnpServiceConfiguration() {
+              @Override
+              protected ExecutorService createDefaultExecutorService() {
+                ThreadPoolExecutor threadPoolExecutor =
+                    new ThreadPoolExecutor(
+                        16,
+                        200,
+                        10,
+                        TimeUnit.SECONDS,
+                        new ArrayBlockingQueue<Runnable>(2000),
+                        new JUPnPThreadFactory(),
+                        new ThreadPoolExecutor.DiscardPolicy() {
+                          // The pool is bounded and rejections will happen during shutdown
+                          @Override
+                          public void rejectedExecution(
+                              final Runnable runnable,
+                              final ThreadPoolExecutor threadPoolExecutor) {
+                            // Log and discard
+                            LOG.warn("Thread pool rejected execution of " + runnable.getClass());
+                            super.rejectedExecution(runnable, threadPoolExecutor);
+                          }
+                        });
+                threadPoolExecutor.allowCoreThreadTimeOut(true);
+                return threadPoolExecutor;
+              }
+            }));
   }
 
   /**
@@ -235,6 +276,45 @@ public class UpnpNatManager {
 
               return upnpQueryFuture;
             });
+  }
+
+  /**
+   * Convenience function to avoid use of PortMapping object. Takes the same arguments as are in a
+   * PortMapping object and constructs such an object for the caller.
+   *
+   * <p>This method chains to the {@link #requestPortForward(PortMapping)} method.
+   *
+   * @param enabled specifies whether or not the PortMapping is enabled
+   * @param leaseDurationSeconds is the duration of the PortMapping, in seconds
+   * @param remoteHost is a domain name or IP address used to filter which remote source this
+   *     forwarding can apply to
+   * @param externalPort is the source port (the port visible to the Internet)
+   * @param internalPort is the destination port (the port to be forwarded to)
+   * @param internalClient is the destination host on the local LAN
+   * @param protocol is either "udp" or "tcp"
+   * @param description is a free-form description, often displayed in router UIs
+   * @return A CompletableFuture which will provide the results of the request
+   */
+  public CompletableFuture<String> requestPortForward(
+      final boolean enabled,
+      final int leaseDurationSeconds,
+      final String remoteHost,
+      final int externalPort,
+      final int internalPort,
+      final String internalClient,
+      final String protocol,
+      final String description) {
+
+    return this.requestPortForward(
+        new PortMapping(
+            enabled,
+            new UnsignedIntegerFourBytes(leaseDurationSeconds),
+            remoteHost,
+            new UnsignedIntegerTwoBytes(externalPort),
+            new UnsignedIntegerTwoBytes(internalPort),
+            internalClient,
+            PortMapping.Protocol.valueOf(protocol),
+            description));
   }
 
   /**

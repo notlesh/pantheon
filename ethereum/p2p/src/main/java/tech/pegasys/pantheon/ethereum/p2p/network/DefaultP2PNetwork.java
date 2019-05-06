@@ -37,6 +37,7 @@ import tech.pegasys.pantheon.ethereum.p2p.network.netty.PeerConnectionRegistry;
 import tech.pegasys.pantheon.ethereum.p2p.network.netty.TimeoutHandler;
 import tech.pegasys.pantheon.ethereum.p2p.peers.Peer;
 import tech.pegasys.pantheon.ethereum.p2p.peers.PeerBlacklist;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.wire.PeerInfo;
 import tech.pegasys.pantheon.ethereum.p2p.wire.SubProtocol;
@@ -61,6 +62,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -149,6 +151,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
   private final Callbacks callbacks = new Callbacks(protocolCallbacks, disconnectCallbacks);
 
   private final PeerDiscoveryAgent peerDiscoveryAgent;
+  private final UpnpNatManager natManager;
   private final PeerBlacklist peerBlacklist;
   private final NetworkingConfiguration config;
   private OptionalLong peerBondedObserverId = OptionalLong.empty();
@@ -179,6 +182,8 @@ public class DefaultP2PNetwork implements P2PNetwork {
   private final LabelledMetric<Counter> outboundMessagesCounter;
 
   private final String advertisedHost;
+
+  private Optional<String> natExternalAddress;
 
   private volatile Optional<EnodeURL> localEnode = Optional.empty();
 
@@ -243,6 +248,9 @@ public class DefaultP2PNetwork implements P2PNetwork {
         "netty_boss_pending_tasks",
         "The number of pending tasks in the Netty boss event loop",
         pendingTaskCounter(boss));
+
+    this.natManager = new UpnpNatManager();
+    this.configureNatEnvironment();
 
     subscribeDisconnect(peerDiscoveryAgent);
     subscribeDisconnect(peerBlacklist);
@@ -705,10 +713,12 @@ public class DefaultP2PNetwork implements P2PNetwork {
             .map(OptionalInt::of)
             .orElse(OptionalInt.empty());
 
+    String advertisedAddress = natExternalAddress.orElse(advertisedHost);
+
     final EnodeURL localEnode =
         EnodeURL.builder()
             .nodeId(nodeId)
-            .ipAddress(advertisedHost)
+            .ipAddress(advertisedAddress)
             .listeningPort(listeningPort)
             .discoveryPort(discoveryPort)
             .build();
@@ -720,6 +730,54 @@ public class DefaultP2PNetwork implements P2PNetwork {
   private void onConnectionEstablished(final PeerConnection connection) {
     connections.registerConnection(connection);
     connectCallbacks.forEach(callback -> callback.accept(connection));
+  }
+
+  private void configureNatEnvironment() {
+    this.natManager.start();
+    CompletableFuture<String> natQueryFuture = this.natManager.queryExternalIPAddress();
+    String address = null;
+    try {
+      address = natQueryFuture.get();
+      LOG.info("External IP address detected: " + address);
+
+      // if we're in a NAT environment, request port forwards for every port we
+      // intend to bind to
+      // TODO: replace with a more explicit condition (e.g. "are we behind NAT?")
+      if (address != null) {
+
+        Set<Integer> desiredPorts = new HashSet<Integer>();
+
+        int discoveryPort = this.config.getDiscovery().getBindPort();
+        if (discoveryPort != 0) {
+          desiredPorts.add(discoveryPort);
+        }
+
+        int rlpxPort = this.config.getRlpx().getBindPort();
+        if (rlpxPort != 0) {
+          desiredPorts.add(rlpxPort);
+        }
+
+        for (int port : desiredPorts) {
+          LOG.info("Requesting port forward for port " + port + "...");
+          CompletableFuture<String> portForwardRequestFuture =
+              this.natManager.requestPortForward(
+                  true,
+                  0,
+                  null,
+                  port,
+                  port,
+                  null, // TODO: this is our internal IP address, we need to detect this from our
+                  // NAT environment
+                  "TCP",
+                  "pantheon-rlpx");
+          String result = portForwardRequestFuture.get();
+          LOG.info("Port forward result: " + result);
+        }
+      }
+    } catch (Exception e) {
+      LOG.error("Error querying external IP address", e);
+    }
+    natExternalAddress = Optional.ofNullable(address);
   }
 
   public static class Builder {
