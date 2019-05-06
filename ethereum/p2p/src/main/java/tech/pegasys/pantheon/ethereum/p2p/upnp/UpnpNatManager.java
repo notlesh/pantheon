@@ -30,7 +30,10 @@ import org.jupnp.model.action.ActionInvocation;
 import org.jupnp.model.message.UpnpResponse;
 import org.jupnp.model.message.header.STAllHeader;
 import org.jupnp.model.meta.Device;
+import org.jupnp.model.meta.RemoteDevice;
+import org.jupnp.model.meta.LocalDevice;
 import org.jupnp.model.meta.Service;
+import org.jupnp.model.meta.RemoteService;
 import org.jupnp.model.types.UnsignedIntegerFourBytes;
 import org.jupnp.model.types.UnsignedIntegerTwoBytes;
 import org.jupnp.registry.DefaultRegistryListener;
@@ -42,7 +45,6 @@ import org.jupnp.support.igd.callback.PortMappingAdd;
 import org.jupnp.support.model.Connection;
 import org.jupnp.support.model.PortMapping;
 
-@SuppressWarnings("rawtypes")
 public class UpnpNatManager {
   protected static final Logger LOG = LogManager.getLogger();
 
@@ -53,7 +55,7 @@ public class UpnpNatManager {
   UpnpService upnpService = null;
   RegistryListener registryListener = null;
 
-  Map<String, Service> recognizedServices;
+  Map<String, RemoteService> recognizedServices;
 
   /** Empty constructor. Creates in instance of UpnpServiceImpl. */
   public UpnpNatManager() {
@@ -105,13 +107,37 @@ public class UpnpNatManager {
 
     // registry listener to observe new devices and look for specific services
     registryListener =
-        new DefaultRegistryListener() {
+        new RegistryListener() {
+
           @Override
-          @SuppressWarnings("rawtypes")
-          public void deviceAdded(final Registry registry, final Device device) {
+          public void remoteDeviceDiscoveryStarted(final Registry registry, final RemoteDevice device) { }
+
+          @Override
+          public void remoteDeviceDiscoveryFailed(final Registry registry, final RemoteDevice device, final Exception ex) { }
+
+          @Override
+          public void remoteDeviceAdded(final Registry registry, final RemoteDevice device) { 
             LOG.debug("UPnP Device discovered: " + device.getDetails().getFriendlyName());
             inspectDeviceRecursive(device, recognizedServices.keySet());
           }
+
+          @Override
+          public void remoteDeviceUpdated(final Registry registry, final RemoteDevice device) { }
+
+          @Override
+          public void remoteDeviceRemoved(final Registry registry, final RemoteDevice device) { }
+
+          @Override
+          public void localDeviceAdded(final Registry registry, final LocalDevice device) { }
+
+          @Override
+          public void localDeviceRemoved(final Registry registry, final LocalDevice device) { }
+
+          @Override
+          public void beforeShutdown(final Registry registry) { }
+
+          @Override
+          public void afterShutdown() { }
         };
 
     // prime our recognizedServices map so we can use its key-set later
@@ -160,8 +186,7 @@ public class UpnpNatManager {
    * @param type is the type descriptor of the desired service
    * @return the first instance of the given type, or null if none
    */
-  @SuppressWarnings("rawtypes")
-  public Service getService(final String type) {
+  public RemoteService getService(final String type) {
     return recognizedServices.get(type);
   }
 
@@ -170,8 +195,7 @@ public class UpnpNatManager {
    *
    * @return the WANIPConnection Service if we have found it, or null.
    */
-  @SuppressWarnings("rawtypes")
-  public Service getWANIPConnectionService() {
+  public RemoteService getWANIPConnectionService() {
     return getService(SERVICE_TYPE_WAN_IP_CONNECTION);
   }
 
@@ -184,8 +208,7 @@ public class UpnpNatManager {
    * @return future that will return the desired service once it is discovered, or null if the
    *     future is cancelled.
    */
-  @SuppressWarnings("rawtypes")
-  public CompletableFuture<Service> discoverService(final String serviceType) {
+  public CompletableFuture<RemoteService> discoverService(final String serviceType) {
 
     return CompletableFuture.supplyAsync(
         () -> {
@@ -193,7 +216,7 @@ public class UpnpNatManager {
           // wait until our thread is interrupted (assume future was cancelled)
           // or we discover the service
           while (!Thread.currentThread().isInterrupted()) {
-            Service service = getService(serviceType);
+            RemoteService service = getService(serviceType);
             if (null != service) {
               return service;
             } else {
@@ -229,6 +252,10 @@ public class UpnpNatManager {
                       upnpQueryFuture.complete(result);
                     }
 
+                    /**
+                     * Because the underlying jupnp library omits generics info
+                     * in this method signature, we must too when we override it.
+                     */
                     @Override
                     @SuppressWarnings("rawtypes")
                     public void failure(
@@ -263,6 +290,10 @@ public class UpnpNatManager {
                       upnpQueryFuture.complete(statusInfo);
                     }
 
+                    /**
+                     * Because the underlying jupnp library omits generics info
+                     * in this method signature, we must too when we override it.
+                     */
                     @Override
                     @SuppressWarnings("rawtypes")
                     public void failure(
@@ -334,6 +365,10 @@ public class UpnpNatManager {
               // our query, which will be handled asynchronously by the jupnp library
               PortMappingAdd callback =
                   new PortMappingAdd(service, portMapping) {
+                    /**
+                     * Because the underlying jupnp library omits generics info
+                     * in this method signature, we must too when we override it.
+                     */
                     @Override
                     @SuppressWarnings("rawtypes")
                     public void success(final ActionInvocation invocation) {
@@ -341,6 +376,10 @@ public class UpnpNatManager {
                       upnpQueryFuture.complete("TODO");
                     }
 
+                    /**
+                     * Because the underlying jupnp library omits generics info
+                     * in this method signature, we must too when we override it.
+                     */
                     @Override
                     @SuppressWarnings("rawtypes")
                     public void failure(
@@ -362,9 +401,8 @@ public class UpnpNatManager {
    * @param device is the device to inspect for desired services.
    * @param serviceTypes is a set of service types to look for.
    */
-  @SuppressWarnings("rawtypes")
-  protected void inspectDeviceRecursive(final Device device, final Set<String> serviceTypes) {
-    for (Service service : device.getServices()) {
+  protected void inspectDeviceRecursive(final RemoteDevice device, final Set<String> serviceTypes) {
+    for (RemoteService service : device.getServices()) {
       String serviceType = service.getServiceType().getType();
       if (serviceTypes.contains(serviceType)) {
         // TODO: handle case where service is already "recognized" as this could lead to
@@ -372,7 +410,7 @@ public class UpnpNatManager {
         recognizedServices.put(serviceType, service);
       }
     }
-    for (Device subDevice : device.getEmbeddedDevices()) {
+    for (RemoteDevice subDevice : device.getEmbeddedDevices()) {
       inspectDeviceRecursive(subDevice, serviceTypes);
     }
   }
