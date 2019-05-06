@@ -735,15 +735,20 @@ public class DefaultP2PNetwork implements P2PNetwork {
   private void configureNatEnvironment() {
     this.natManager.start();
     CompletableFuture<String> natQueryFuture = this.natManager.queryExternalIPAddress();
-    String address = null;
+    String externalAddress = null;
     try {
-      address = natQueryFuture.get();
-      LOG.info("External IP address detected: " + address);
+      externalAddress = natQueryFuture.get();
 
       // if we're in a NAT environment, request port forwards for every port we
       // intend to bind to
       // TODO: replace with a more explicit condition (e.g. "are we behind NAT?")
-      if (address != null) {
+      if (externalAddress != null) {
+        String internalAddress = this.natManager.getDiscoveredOnLocalAddress();
+        LOG.info(
+            "External IP address "
+                + externalAddress
+                + " detected for internal address "
+                + internalAddress);
 
         Set<Integer> desiredPorts = new HashSet<Integer>();
 
@@ -761,23 +766,15 @@ public class DefaultP2PNetwork implements P2PNetwork {
           LOG.info("Requesting port forward for port " + port + "...");
           CompletableFuture<String> portForwardRequestFuture =
               this.natManager.requestPortForward(
-                  true,
-                  0,
-                  null,
-                  port,
-                  port,
-                  null, // TODO: this is our internal IP address, we need to detect this from our
-                  // NAT environment
-                  "TCP",
-                  "pantheon-rlpx");
+                  true, 0, null, port, port, internalAddress, "TCP", "pantheon-rlpx");
           String result = portForwardRequestFuture.get();
           LOG.info("Port forward result: " + result);
         }
       }
     } catch (Exception e) {
-      LOG.error("Error querying external IP address", e);
+      LOG.error("Error configuring NAT environment", e);
     }
-    natExternalAddress = Optional.ofNullable(address);
+    natExternalAddress = Optional.ofNullable(externalAddress);
   }
 
   public static class Builder {

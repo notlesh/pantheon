@@ -31,6 +31,7 @@ import org.jupnp.model.message.UpnpResponse;
 import org.jupnp.model.message.header.STAllHeader;
 import org.jupnp.model.meta.LocalDevice;
 import org.jupnp.model.meta.RemoteDevice;
+import org.jupnp.model.meta.RemoteDeviceIdentity;
 import org.jupnp.model.meta.RemoteService;
 import org.jupnp.model.types.UnsignedIntegerFourBytes;
 import org.jupnp.model.types.UnsignedIntegerTwoBytes;
@@ -53,6 +54,7 @@ public class UpnpNatManager {
   RegistryListener registryListener = null;
 
   Map<String, RemoteService> recognizedServices;
+  String discoveredOnLocalAddress = null;
 
   /** Empty constructor. Creates in instance of UpnpServiceImpl. */
   public UpnpNatManager() {
@@ -199,6 +201,19 @@ public class UpnpNatManager {
   }
 
   /**
+   * Get the local address on which we discovered our external IP address.
+   *
+   * <p>This can be useful to distinguish which network interface the external address was
+   * discovered on.
+   *
+   * @return the local address on which our GetExternalIP was discovered on, or null if no
+   *     GetExternalIP query has been performed successfully.
+   */
+  public String getDiscoveredOnLocalAddress() {
+    return this.discoveredOnLocalAddress;
+  }
+
+  /**
    * Returns a CompletableFuture that will wait for the given service type to be discovered. No new
    * query will be performed, and if the service has already been discovered, the future will
    * complete in the very near future.
@@ -246,6 +261,27 @@ public class UpnpNatManager {
               // our query, which will be handled asynchronously by the jupnp library
               GetExternalIP callback =
                   new GetExternalIP(service) {
+
+                    /**
+                     * Override the success(ActionInvocation) version of success so that we can take
+                     * a peek at the network interface that we discovered this on.
+                     *
+                     * <p>Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
+                     */
+                    @Override
+                    @SuppressWarnings("rawtypes")
+                    public void success(final ActionInvocation invocation) {
+                      RemoteService service = (RemoteService) invocation.getAction().getService();
+                      RemoteDevice device = service.getDevice();
+                      RemoteDeviceIdentity identity = device.getIdentity();
+
+                      discoveredOnLocalAddress =
+                          identity.getDiscoveredOnLocalAddress().getHostAddress();
+
+                      super.success(invocation);
+                    }
+
                     @Override
                     protected void success(final String result) {
                       upnpQueryFuture.complete(result);
