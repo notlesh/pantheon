@@ -15,21 +15,15 @@ package tech.pegasys.pantheon.ethereum.p2p.upnp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jupnp.DefaultUpnpServiceConfiguration;
 import org.jupnp.UpnpService;
 import org.jupnp.UpnpServiceImpl;
 import org.jupnp.model.action.ActionInvocation;
 import org.jupnp.model.message.UpnpResponse;
 import org.jupnp.model.message.header.STAllHeader;
-import org.jupnp.model.meta.LocalDevice;
 import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.model.meta.RemoteDeviceIdentity;
 import org.jupnp.model.meta.RemoteService;
@@ -49,12 +43,12 @@ public class UpnpNatManager {
   public static final String SERVICE_DEFAULT_NAMESPACE = "schemas-upnp-org";
   public static final String SERVICE_TYPE_WAN_IP_CONNECTION = "WANIPConnection";
 
-  boolean started = false;
-  UpnpService upnpService = null;
-  RegistryListener registryListener = null;
+  private boolean started = false;
+  private UpnpService upnpService = null;
+  private RegistryListener registryListener = null;
 
-  Map<String, RemoteService> recognizedServices;
-  String discoveredOnLocalAddress = null;
+  private Map<String, RemoteService> recognizedServices;
+  private String discoveredOnLocalAddress = null;
 
   /** Empty constructor. Creates in instance of UpnpServiceImpl. */
   public UpnpNatManager() {
@@ -66,34 +60,7 @@ public class UpnpNatManager {
     //   https://github.com/jupnp/jupnp/pull/117
     // However, this fix has not made it into any releases yet.
     // TODO: once a new release is available, remove this @Override
-    this(
-        new UpnpServiceImpl(
-            new DefaultUpnpServiceConfiguration() {
-              @Override
-              protected ExecutorService createDefaultExecutorService() {
-                ThreadPoolExecutor threadPoolExecutor =
-                    new ThreadPoolExecutor(
-                        16,
-                        200,
-                        10,
-                        TimeUnit.SECONDS,
-                        new ArrayBlockingQueue<Runnable>(2000),
-                        new JUPnPThreadFactory(),
-                        new ThreadPoolExecutor.DiscardPolicy() {
-                          // The pool is bounded and rejections will happen during shutdown
-                          @Override
-                          public void rejectedExecution(
-                              final Runnable runnable,
-                              final ThreadPoolExecutor threadPoolExecutor) {
-                            // Log and discard
-                            LOG.warn("Thread pool rejected execution of " + runnable.getClass());
-                            super.rejectedExecution(runnable, threadPoolExecutor);
-                          }
-                        });
-                threadPoolExecutor.allowCoreThreadTimeOut(true);
-                return threadPoolExecutor;
-              }
-            }));
+    this(new UpnpServiceImpl(new PantheonUpnpServiceConfiguration()));
   }
 
   /**
@@ -106,39 +73,12 @@ public class UpnpNatManager {
 
     // registry listener to observe new devices and look for specific services
     registryListener =
-        new RegistryListener() {
-
-          @Override
-          public void remoteDeviceDiscoveryStarted(
-              final Registry registry, final RemoteDevice device) {}
-
-          @Override
-          public void remoteDeviceDiscoveryFailed(
-              final Registry registry, final RemoteDevice device, final Exception ex) {}
-
+        new DefaultRegistryListener() {
           @Override
           public void remoteDeviceAdded(final Registry registry, final RemoteDevice device) {
             LOG.debug("UPnP Device discovered: " + device.getDetails().getFriendlyName());
             inspectDeviceRecursive(device, recognizedServices.keySet());
           }
-
-          @Override
-          public void remoteDeviceUpdated(final Registry registry, final RemoteDevice device) {}
-
-          @Override
-          public void remoteDeviceRemoved(final Registry registry, final RemoteDevice device) {}
-
-          @Override
-          public void localDeviceAdded(final Registry registry, final LocalDevice device) {}
-
-          @Override
-          public void localDeviceRemoved(final Registry registry, final LocalDevice device) {}
-
-          @Override
-          public void beforeShutdown(final Registry registry) {}
-
-          @Override
-          public void afterShutdown() {}
         };
 
     // prime our recognizedServices map so we can use its key-set later
@@ -187,7 +127,7 @@ public class UpnpNatManager {
    * @param type is the type descriptor of the desired service
    * @return the first instance of the given type, or null if none
    */
-  public RemoteService getService(final String type) {
+  private RemoteService getService(final String type) {
     return recognizedServices.get(type);
   }
 
@@ -222,7 +162,7 @@ public class UpnpNatManager {
    * @return future that will return the desired service once it is discovered, or null if the
    *     future is cancelled.
    */
-  public CompletableFuture<RemoteService> discoverService(final String serviceType) {
+  private CompletableFuture<RemoteService> discoverService(final String serviceType) {
 
     return CompletableFuture.supplyAsync(
         () -> {
@@ -389,7 +329,7 @@ public class UpnpNatManager {
    * @param portMapping is a portMapping object describing the desired port mapping parameters.
    * @return A CompletableFuture that can be used to query the result (or error).
    */
-  public CompletableFuture<String> requestPortForward(final PortMapping portMapping) {
+  private CompletableFuture<String> requestPortForward(final PortMapping portMapping) {
 
     CompletableFuture<String> upnpQueryFuture = new CompletableFuture<>();
 
@@ -436,7 +376,7 @@ public class UpnpNatManager {
    * @param device is the device to inspect for desired services.
    * @param serviceTypes is a set of service types to look for.
    */
-  protected void inspectDeviceRecursive(final RemoteDevice device, final Set<String> serviceTypes) {
+  private void inspectDeviceRecursive(final RemoteDevice device, final Set<String> serviceTypes) {
     for (RemoteService service : device.getServices()) {
       String serviceType = service.getServiceType().getType();
       if (serviceTypes.contains(serviceType)) {
