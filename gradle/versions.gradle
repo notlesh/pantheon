@@ -68,6 +68,9 @@ dependencyManagement {
 
     dependency 'org.java-websocket:Java-WebSocket:1.4.0'
 
+    dependency 'org.jupnp:org.jupnp:2.5.2'
+    dependency 'org.jupnp:org.jupnp.support:2.5.2'
+    
     dependency 'org.mockito:mockito-core:2.25.0'
 
     dependency 'org.openjdk.jmh:jmh-core:1.21'
@@ -75,8 +78,10 @@ dependencyManagement {
 
     dependency 'org.rocksdb:rocksdbjni:5.15.10'
 
-    dependency 'org.springframework.security:spring-security-crypto:5.1.4.RELEASE'
+    dependency 'org.slf4j:slf4j-log4j12:1.7.26'
     
+    dependency 'org.springframework.security:spring-security-crypto:5.1.4.RELEASE'
+
     dependency 'org.web3j:abi:4.1.1'
     dependency 'org.web3j:core:4.1.1'
     dependency 'org.web3j:crypto:4.1.1'

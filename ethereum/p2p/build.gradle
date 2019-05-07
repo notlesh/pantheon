@@ -36,13 +36,12 @@ dependencies {
   implementation 'io.prometheus:simpleclient'
   implementation 'io.vertx:vertx-core'
   implementation 'org.apache.logging.log4j:log4j-api'
+  implementation 'org.jupnp:org.jupnp'
+  implementation 'org.jupnp:org.jupnp.support'
   implementation 'org.xerial.snappy:snappy-java'
-  implementation 'org.jupnp:org.jupnp:2.5.2'
-  implementation 'org.jupnp:org.jupnp.support:2.5.2'
-
-  compile 'org.slf4j:slf4j-log4j12:1.7.26'
 
   runtime 'org.apache.logging.log4j:log4j-core'
+  runtime 'org.slf4j:slf4j-log4j12'
 
   // test dependencies.
   testImplementation project(path: ':ethereum:core', configuration: 'testArtifacts')
