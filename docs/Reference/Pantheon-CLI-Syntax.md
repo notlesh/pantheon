@@ -550,6 +550,22 @@ The default is 30303. Ports must be [exposed appropriately](../Configuring-Panth
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#exposing-ports). 
 
+### upnp-enabled
+
+```bash tab="Syntax"
+--upnp-enabled
+```
+
+```bash tab="Example Configuration File"
+upnp-enabled=true
+```
+
+Set to `true` to enable the UPnP discovery service.
+The default is `false`.
+
+!!!note
+    This option may introduce delays during node startup, especially on networks where no UPnP gateway device can be found.
+
 ### permissions-accounts-config-file-enabled
 
 ```bash tab="Syntax"

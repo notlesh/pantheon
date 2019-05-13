@@ -24,6 +24,7 @@ public class NetworkingConfiguration {
   private DiscoveryConfiguration discovery = new DiscoveryConfiguration();
   private RlpxConfiguration rlpx = new RlpxConfiguration();
   private String clientId = "";
+  private boolean upnpEnabled = false;
 
   public static NetworkingConfiguration create() {
     return new NetworkingConfiguration();
@@ -67,6 +68,15 @@ public class NetworkingConfiguration {
 
   public NetworkingConfiguration setClientId(final String clientId) {
     this.clientId = clientId;
+    return this;
+  }
+
+  public boolean isUpnpEnabled() {
+    return upnpEnabled;
+  }
+
+  public NetworkingConfiguration setUpnpEnabled(final boolean upnpEnabled) {
+    this.upnpEnabled = upnpEnabled;
     return this;
   }
 

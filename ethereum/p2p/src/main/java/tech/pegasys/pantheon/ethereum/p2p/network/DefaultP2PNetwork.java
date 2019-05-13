@@ -151,7 +151,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
   private final Callbacks callbacks = new Callbacks(protocolCallbacks, disconnectCallbacks);
 
   private final PeerDiscoveryAgent peerDiscoveryAgent;
-  private final UpnpNatManager natManager;
+  private UpnpNatManager natManager;
   private final PeerBlacklist peerBlacklist;
   private final NetworkingConfiguration config;
   private OptionalLong peerBondedObserverId = OptionalLong.empty();
@@ -249,8 +249,11 @@ public class DefaultP2PNetwork implements P2PNetwork {
         "The number of pending tasks in the Netty boss event loop",
         pendingTaskCounter(boss));
 
-    this.natManager = new UpnpNatManager();
-    this.configureNatEnvironment();
+    natExternalAddress = Optional.empty();
+    if (config.isUpnpEnabled()) {
+      this.natManager = new UpnpNatManager();
+      this.configureNatEnvironment();
+    }
 
     subscribeDisconnect(peerDiscoveryAgent);
     subscribeDisconnect(peerBlacklist);

@@ -94,6 +94,7 @@ public class RunnerBuilder {
   private EthNetworkConfig ethNetworkConfig;
   private String p2pAdvertisedHost;
   private int p2pListenPort;
+  private boolean upnpEnabled;
   private int maxPeers;
   private JsonRpcConfiguration jsonRpcConfiguration;
   private WebSocketConfiguration webSocketConfiguration;
@@ -136,6 +137,11 @@ public class RunnerBuilder {
 
   public RunnerBuilder p2pListenPort(final int p2pListenPort) {
     this.p2pListenPort = p2pListenPort;
+    return this;
+  }
+
+  public RunnerBuilder upnpEnabled(final boolean upnpEnabled) {
+    this.upnpEnabled = upnpEnabled;
     return this;
   }
 
@@ -226,6 +232,7 @@ public class RunnerBuilder {
             .setRlpx(RlpxConfiguration.create().setBindPort(p2pListenPort).setMaxPeers(maxPeers))
             .setDiscovery(discoveryConfiguration)
             .setClientId(PantheonInfo.version())
+            .setUpnpEnabled(upnpEnabled)
             .setSupportedProtocols(subProtocols);
 
     final PeerBlacklist peerBlacklist =

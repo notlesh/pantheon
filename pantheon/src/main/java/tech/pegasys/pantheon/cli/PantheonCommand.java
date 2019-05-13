@@ -243,6 +243,13 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
   private final Integer p2pPort = EnodeURL.DEFAULT_LISTENING_PORT;
 
   @Option(
+      names = {"--upnp-enabled"},
+      description =
+          "Enable UPnP to forward ports through NAT and determine external IP address"
+              + " (default: ${DEFAULT-VALUE})")
+  private final Boolean isUpnpEnabled = false;
+
+  @Option(
       names = {"--network-id"},
       paramLabel = MANDATORY_INTEGER_FORMAT_HELP,
       description =
@@ -612,6 +619,7 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
         "--p2p-enabled",
         !p2pEnabled,
         asList(
+            "--upnp-enabled",
             "--bootnodes",
             "--discovery-enabled",
             "--max-peers",
@@ -969,6 +977,7 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
             .vertx(Vertx.vertx(createVertxOptions(metricsSystem)))
             .pantheonController(controller)
             .p2pEnabled(p2pEnabled)
+            .upnpEnabled(isUpnpEnabled)
             .discovery(peerDiscoveryEnabled)
             .ethNetworkConfig(ethNetworkConfig)
             .p2pAdvertisedHost(p2pAdvertisedHost)
