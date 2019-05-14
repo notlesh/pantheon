@@ -53,13 +53,13 @@ public class NetworkingServiceLifecycleTest {
     try (final P2PNetwork service = builder().build()) {
       service.start();
       final EnodeURL enode = service.getLocalEnode().get();
-      final int udpPort = enode.getEffectiveDiscoveryPort();
-      final int tcpPort = enode.getListeningPort();
+      final int udpPort = enode.getDiscoveryPortOrZero();
+      final int tcpPort = enode.getListeningPortOrZero();
 
       assertEquals(config.getDiscovery().getAdvertisedHost(), enode.getIpAsString());
       assertThat(udpPort).isNotZero();
       assertThat(tcpPort).isNotZero();
-      assertThat(service.getDiscoveredPeers()).hasSize(0);
+      assertThat(service.streamDiscoveredPeers()).hasSize(0);
     }
   }
 
@@ -124,7 +124,9 @@ public class NetworkingServiceLifecycleTest {
     try (final P2PNetwork service1 = builder().config(config).build()) {
       service1.start();
       final NetworkingConfiguration config = configWithRandomPorts();
-      config.getDiscovery().setBindPort(service1.getLocalEnode().get().getEffectiveDiscoveryPort());
+      final int usedPort = service1.getLocalEnode().get().getDiscoveryPortOrZero();
+      assertThat(usedPort).isNotZero();
+      config.getDiscovery().setBindPort(usedPort);
       try (final P2PNetwork service2 = builder().config(config).build()) {
         try {
           service2.start();
@@ -146,7 +148,7 @@ public class NetworkingServiceLifecycleTest {
   @Test
   public void createP2PNetwork_NoActivePeers() throws IOException {
     try (final P2PNetwork agent = builder().build()) {
-      assertTrue(agent.getDiscoveredPeers().collect(toList()).isEmpty());
+      assertTrue(agent.streamDiscoveredPeers().collect(toList()).isEmpty());
       assertEquals(0, agent.getPeers().size());
     }
   }

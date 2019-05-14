@@ -22,12 +22,10 @@ import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PeerDiscoveryContro
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.TimerUtil;
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.VertxTimerUtil;
 import tech.pegasys.pantheon.ethereum.p2p.peers.PeerBlacklist;
-import tech.pegasys.pantheon.ethereum.permissioning.NodeLocalConfigPermissioningController;
 import tech.pegasys.pantheon.ethereum.permissioning.node.NodePermissioningController;
 import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.util.NetworkUtility;
-import tech.pegasys.pantheon.util.Preconditions;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -61,16 +59,9 @@ public class VertxPeerDiscoveryAgent extends PeerDiscoveryAgent {
       final KeyPair keyPair,
       final DiscoveryConfiguration config,
       final PeerBlacklist peerBlacklist,
-      final Optional<NodeLocalConfigPermissioningController> nodeWhitelistController,
       final Optional<NodePermissioningController> nodePermissioningController,
       final MetricsSystem metricsSystem) {
-    super(
-        keyPair,
-        config,
-        peerBlacklist,
-        nodeWhitelistController,
-        nodePermissioningController,
-        metricsSystem);
+    super(keyPair, config, peerBlacklist, nodePermissioningController, metricsSystem);
     checkArgument(vertx != null, "vertx instance cannot be null");
     this.vertx = vertx;
 
@@ -154,7 +145,7 @@ public class VertxPeerDiscoveryAgent extends PeerDiscoveryAgent {
     CompletableFuture<Void> result = new CompletableFuture<>();
     socket.send(
         packet.encode(),
-        peer.getEnodeURL().getEffectiveDiscoveryPort(),
+        peer.getEndpoint().getUdpPort(),
         peer.getEnodeURL().getIpAsString(),
         ar -> {
           if (ar.failed()) {
@@ -205,26 +196,34 @@ public class VertxPeerDiscoveryAgent extends PeerDiscoveryAgent {
    * @param datagram the received datagram.
    */
   private void handlePacket(final DatagramPacket datagram) {
-    try {
-      final int length = datagram.data().length();
-      Preconditions.checkGuard(
-          validatePacketSize(length),
-          PeerDiscoveryPacketDecodingException::new,
-          "Packet too large. Actual size (bytes): %s",
-          length);
-
-      // We allow exceptions to bubble up, as they'll be picked up by the exception handler.
-      final Packet packet = Packet.decode(datagram.data());
-      // Acquire the senders coordinates to build a Peer representation from them.
-      final String host = datagram.sender().host();
-      final int port = datagram.sender().port();
-      final Endpoint endpoint = new Endpoint(host, port, OptionalInt.empty());
-      handleIncomingPacket(endpoint, packet);
-    } catch (final PeerDiscoveryPacketDecodingException e) {
-      LOG.debug("Discarding invalid peer discovery packet: {}", e.getMessage());
-    } catch (final Throwable t) {
-      LOG.error("Encountered error while handling packet", t);
+    final int length = datagram.data().length();
+    if (!validatePacketSize(length)) {
+      LOG.debug("Discarding over-sized packet. Actual size (bytes): " + length);
+      return;
     }
+    vertx.<Packet>executeBlocking(
+        future -> {
+          try {
+            future.complete(Packet.decode(datagram.data()));
+          } catch (final Throwable t) {
+            future.fail(t);
+          }
+        },
+        event -> {
+          if (event.succeeded()) {
+            // Acquire the senders coordinates to build a Peer representation from them.
+            final String host = datagram.sender().host();
+            final int port = datagram.sender().port();
+            final Endpoint endpoint = new Endpoint(host, port, OptionalInt.empty());
+            handleIncomingPacket(endpoint, event.result());
+          } else {
+            if (event.cause() instanceof PeerDiscoveryPacketDecodingException) {
+              LOG.debug("Discarding invalid peer discovery packet: {}", event.cause().getMessage());
+            } else {
+              LOG.error("Encountered error while handling packet", event.cause());
+            }
+          }
+        });
   }
 
   private class VertxAsyncExecutor implements AsyncExecutor {

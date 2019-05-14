@@ -13,6 +13,7 @@
 package tech.pegasys.pantheon.ethereum.p2p.network;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Java6Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Java6Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -68,7 +69,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -80,7 +80,7 @@ public final class DefaultP2PNetworkTest {
 
   @Mock private Blockchain blockchain;
 
-  private ArgumentCaptor<BlockAddedObserver> observerCaptor =
+  private final ArgumentCaptor<BlockAddedObserver> observerCaptor =
       ArgumentCaptor.forClass(BlockAddedObserver.class);
 
   private final Vertx vertx = Vertx.vertx();
@@ -110,6 +110,37 @@ public final class DefaultP2PNetworkTest {
 
     assertThat(network.peerMaintainConnectionList).contains(peer);
     verify(network, times(1)).connect(peer);
+  }
+
+  @Test
+  public void addMaintainConnectionPeer_beforeStartingNetwork() {
+    final DefaultP2PNetwork network = mockNetwork();
+    final Peer peer = mockPeer();
+
+    assertThat(network.addMaintainConnectionPeer(peer)).isTrue();
+
+    assertThat(network.peerMaintainConnectionList).contains(peer);
+    verify(network, never()).connect(peer);
+  }
+
+  @Test
+  public void addMaintainConnectionPeer_withNonListeningEnode() {
+    final DefaultP2PNetwork network = mockNetwork();
+    network.start();
+    final Peer peer =
+        DefaultPeer.fromEnodeURL(
+            EnodeURL.builder()
+                .nodeId(Peer.randomId())
+                .ipAddress("127.0.0.1")
+                .useDefaultPorts()
+                .disableListening()
+                .build());
+
+    assertThatThrownBy(() -> network.addMaintainConnectionPeer(peer))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Enode url must contain a non-zero listening port");
+
+    verify(network, never()).connect(peer);
   }
 
   @Test
@@ -184,6 +215,7 @@ public final class DefaultP2PNetworkTest {
     final Peer peer = mockPeer();
     final PeerConnection peerConnection = mockPeerConnection();
 
+    network.start();
     network.connect(peer).complete(peerConnection);
     network.stop();
 
@@ -193,6 +225,7 @@ public final class DefaultP2PNetworkTest {
   @Test
   public void shouldntAttemptNewConnectionToPendingPeer() {
     final P2PNetwork network = network();
+    network.start();
     final Peer peer = mockPeer();
 
     final CompletableFuture<PeerConnection> connectingFuture = network.connect(peer);
@@ -312,7 +345,7 @@ public final class DefaultP2PNetworkTest {
     final Peer remotePeer = mockPeer("127.0.0.2", 30302);
     final PeerConnection peerConnection = mockPeerConnection(remotePeer);
 
-    CompletableFuture<PeerConnection> future = network.connect(remotePeer);
+    final CompletableFuture<PeerConnection> future = network.connect(remotePeer);
 
     assertThat(network.peerMaintainConnectionList.contains(remotePeer)).isFalse();
     assertThat(network.pendingConnections.containsKey(remotePeer)).isTrue();
@@ -343,10 +376,10 @@ public final class DefaultP2PNetworkTest {
   @Test
   public void handlePeerBondedEvent_forPeerWithNoTcpPort() {
     final DefaultP2PNetwork network = mockNetwork();
-    DiscoveryPeer peer =
+    final DiscoveryPeer peer =
         DiscoveryPeer.fromIdAndEndpoint(
             Peer.randomId(), new Endpoint("127.0.0.1", 999, OptionalInt.empty()));
-    PeerBondedEvent peerBondedEvent = new PeerBondedEvent(peer, System.currentTimeMillis());
+    final PeerBondedEvent peerBondedEvent = new PeerBondedEvent(peer, System.currentTimeMillis());
 
     network.handlePeerBondedEvent().accept(peerBondedEvent);
     verify(network, times(1)).connect(peer);
@@ -362,8 +395,8 @@ public final class DefaultP2PNetworkTest {
     DiscoveryPeer peer = createDiscoveryPeer();
     peer.setStatus(PeerDiscoveryStatus.BONDED);
 
-    doReturn(Stream.of(peer)).when(network).getDiscoveredPeers();
-    ArgumentCaptor<DiscoveryPeer> peerCapture = ArgumentCaptor.forClass(DiscoveryPeer.class);
+    doReturn(Stream.of(peer)).when(network).streamDiscoveredPeers();
+    final ArgumentCaptor<DiscoveryPeer> peerCapture = ArgumentCaptor.forClass(DiscoveryPeer.class);
     doReturn(CompletableFuture.completedFuture(mock(PeerConnection.class)))
         .when(network)
         .connect(peerCapture.capture());
@@ -383,7 +416,7 @@ public final class DefaultP2PNetworkTest {
     DiscoveryPeer peer = createDiscoveryPeer();
     peer.setStatus(PeerDiscoveryStatus.KNOWN);
 
-    doReturn(Stream.of(peer)).when(network).getDiscoveredPeers();
+    doReturn(Stream.of(peer)).when(network).streamDiscoveredPeers();
 
     network.attemptPeerConnections();
     verify(network, times(0)).connect(any());
@@ -400,7 +433,7 @@ public final class DefaultP2PNetworkTest {
     peer.setStatus(PeerDiscoveryStatus.BONDED);
 
     doReturn(true).when(network).isConnecting(peer);
-    doReturn(Stream.of(peer)).when(network).getDiscoveredPeers();
+    doReturn(Stream.of(peer)).when(network).streamDiscoveredPeers();
 
     network.attemptPeerConnections();
     verify(network, times(0)).connect(any());
@@ -417,7 +450,7 @@ public final class DefaultP2PNetworkTest {
     peer.setStatus(PeerDiscoveryStatus.BONDED);
 
     doReturn(true).when(network).isConnected(peer);
-    doReturn(Stream.of(peer)).when(network).getDiscoveredPeers();
+    doReturn(Stream.of(peer)).when(network).streamDiscoveredPeers();
 
     network.attemptPeerConnections();
     verify(network, times(0)).connect(any());
@@ -430,7 +463,7 @@ public final class DefaultP2PNetworkTest {
         mockNetwork(() -> RlpxConfiguration.create().setMaxPeers(maxPeers));
 
     doReturn(2).when(network).connectionCount();
-    List<DiscoveryPeer> peers =
+    final List<DiscoveryPeer> peers =
         Stream.iterate(1, n -> n + 1)
             .limit(10)
             .map(
@@ -441,8 +474,8 @@ public final class DefaultP2PNetworkTest {
                 })
             .collect(Collectors.toList());
 
-    doReturn(peers.stream()).when(network).getDiscoveredPeers();
-    ArgumentCaptor<DiscoveryPeer> peerCapture = ArgumentCaptor.forClass(DiscoveryPeer.class);
+    doReturn(peers.stream()).when(network).streamDiscoveredPeers();
+    final ArgumentCaptor<DiscoveryPeer> peerCapture = ArgumentCaptor.forClass(DiscoveryPeer.class);
     doReturn(CompletableFuture.completedFuture(mock(PeerConnection.class)))
         .when(network)
         .connect(peerCapture.capture());
@@ -459,7 +492,7 @@ public final class DefaultP2PNetworkTest {
         mockNetwork(() -> RlpxConfiguration.create().setMaxPeers(maxPeers));
 
     doReturn(maxPeers).when(network).connectionCount();
-    List<DiscoveryPeer> peers =
+    final List<DiscoveryPeer> peers =
         Stream.iterate(1, n -> n + 1)
             .limit(10)
             .map(
@@ -470,10 +503,43 @@ public final class DefaultP2PNetworkTest {
                 })
             .collect(Collectors.toList());
 
-    lenient().doReturn(peers.stream()).when(network).getDiscoveredPeers();
+    lenient().doReturn(peers.stream()).when(network).streamDiscoveredPeers();
 
     network.attemptPeerConnections();
     verify(network, times(0)).connect(any());
+  }
+
+  @Test
+  public void connect_beforeStartingNetwork() {
+    final DefaultP2PNetwork network = network();
+    final Peer peer = mockPeer();
+
+    final CompletableFuture<PeerConnection> connectionResult = network.connect(peer);
+    assertThat(connectionResult).isCompletedExceptionally();
+    assertThatThrownBy(connectionResult::get)
+        .hasCauseInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Attempt to connect to peer before network is ready");
+  }
+
+  @Test
+  public void connect_toNonListeningPeer() {
+    final DefaultP2PNetwork network = network();
+    network.start();
+    final Peer peer =
+        DefaultPeer.fromEnodeURL(
+            EnodeURL.builder()
+                .ipAddress("127.0.0.1")
+                .nodeId(Peer.randomId())
+                .disableListening()
+                .discoveryPort(30303)
+                .build());
+
+    final CompletableFuture<PeerConnection> connectionResult = network.connect(peer);
+    assertThat(connectionResult).isCompletedExceptionally();
+    assertThatThrownBy(connectionResult::get)
+        .hasCauseInstanceOf(IllegalStateException.class)
+        .hasMessageContaining(
+            "Attempt to connect to peer with no listening port: " + peer.getEnodeURLString());
   }
 
   private DiscoveryPeer createDiscoveryPeer() {
@@ -503,7 +569,7 @@ public final class DefaultP2PNetworkTest {
             5,
             "test",
             Arrays.asList(Capability.create("eth", 63)),
-            remoteEnode.getListeningPort(),
+            remoteEnode.getListeningPortOrZero(),
             remoteEnode.getNodeId());
 
     final PeerConnection peerConnection = mock(PeerConnection.class);
@@ -518,7 +584,7 @@ public final class DefaultP2PNetworkTest {
   }
 
   private DefaultP2PNetwork mockNetwork(final Supplier<RlpxConfiguration> rlpxConfig) {
-    DefaultP2PNetwork network = spy(network(rlpxConfig));
+    final DefaultP2PNetwork network = spy(network(rlpxConfig));
     lenient().doReturn(new CompletableFuture<>()).when(network).connect(any());
     return network;
   }
@@ -586,32 +652,12 @@ public final class DefaultP2PNetworkTest {
     return EnodeURL.builder()
         .ipAddress(InetAddress.getLoopbackAddress().getHostAddress())
         .nodeId(nodeId)
-        .listeningPort(listenPort)
+        .discoveryAndListeningPorts(listenPort)
         .build();
   }
 
-  public static class EnodeURLMatcher implements ArgumentMatcher<EnodeURL> {
-
-    private final EnodeURL enodeURL;
-
-    EnodeURLMatcher(final EnodeURL enodeURL) {
-      this.enodeURL = enodeURL;
-    }
-
-    @Override
-    public boolean matches(final EnodeURL argument) {
-      if (argument == null) {
-        return false;
-      } else {
-        return enodeURL.getNodeId().equals(argument.getNodeId())
-            && enodeURL.getIp().equals(argument.getIp())
-            && enodeURL.getListeningPort() == argument.getListeningPort();
-      }
-    }
-  }
-
   private EnodeURL enodeEq(final EnodeURL enodeURL) {
-    return argThat(new EnodeURLMatcher(enodeURL));
+    return argThat((EnodeURL e) -> EnodeURL.sameListeningEndpoint(e, enodeURL));
   }
 
   private static SubProtocol subProtocol() {

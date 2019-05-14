@@ -157,7 +157,7 @@ The path to the genesis file.
 host-whitelist=["medomain.com", "meotherdomain.com"]
 ```
 
-Comma-separated list of hostnames to allow [access to the JSON-RPC API](../JSON-RPC-API/Using-JSON-RPC-API.md#host-whitelist). 
+Comma-separated list of hostnames to allow [access to the JSON-RPC API](../Pantheon-API/Using-JSON-RPC-API.md#host-whitelist). 
 By default, access from `localhost` and `127.0.0.1` is accepted. 
 
 !!!tip
@@ -207,7 +207,7 @@ Comma separated list of categories for which to track metrics. The default is al
 metrics-enabled=true
 ```
 
-Set to `true` to enable the [metrics exporter](../Using-Pantheon/Debugging.md#monitor-node-performance-using-prometheus).
+Set to `true` to enable the [metrics exporter](../Using-Pantheon/Monitoring.md#monitor-node-performance-using-prometheus).
 The default is `false`.
 
 `--metrics-enabled` cannot be specified with `--metrics-push-enabled`. That is, either Prometheus polling or Prometheus 
@@ -227,7 +227,7 @@ push gateway support can be enabled but not both at once.
 metrics-host="127.0.0.1"
 ```
 
-Specifies the host on which [Prometheus](https://prometheus.io/) accesses [Pantheon metrics](../Using-Pantheon/Debugging.md#monitor-node-performance-using-prometheus). 
+Specifies the host on which [Prometheus](https://prometheus.io/) accesses [Pantheon metrics](../Using-Pantheon/Monitoring.md#monitor-node-performance-using-prometheus). 
 The metrics server respects the [`--host-whitelist` option](#host-whitelist).
 
 The default is `127.0.0.1`. 
@@ -246,7 +246,7 @@ The default is `127.0.0.1`.
 metrics-port="6174"
 ```
 
-Specifies the port (TCP) on which [Prometheus](https://prometheus.io/) accesses [Pantheon metrics](../Using-Pantheon/Debugging.md#monitor-node-performance-using-prometheus).
+Specifies the port (TCP) on which [Prometheus](https://prometheus.io/) accesses [Pantheon metrics](../Using-Pantheon/Monitoring.md#monitor-node-performance-using-prometheus).
 The default is `9545`. Ports must be [exposed appropriately](../Configuring-Pantheon/Networking/Configuring-Ports.md).
 
 ### metrics-push-enabled 
@@ -263,7 +263,7 @@ The default is `9545`. Ports must be [exposed appropriately](../Configuring-Pant
 metrics-push-enabled="true"
 ```
 
-Set to `true` to start the [push gateway integration](../Using-Pantheon/Debugging.md#running-prometheus-with-pantheon-in-push-mode).
+Set to `true` to start the [push gateway integration](../Using-Pantheon/Monitoring.md#running-prometheus-with-pantheon-in-push-mode).
 
 `--metrics-push-enabled` cannot be specified with `--metrics-enabled`. That is, either Prometheus polling or Prometheus 
 push gateway support can be enabled but not both at once.
@@ -355,7 +355,7 @@ Job name when in `push` mode. The default is `pantheon-client`.
 
 Account to which mining rewards are paid.
 You must specify a valid coinbase when you enable mining using the [`--miner-enabled`](#miner-enabled) 
-option or the [`miner_start`](JSON-RPC-API-Methods.md#miner_start) JSON RPC-API method.
+option or the [`miner_start`](Pantheon-API-Methods.md#miner_start) JSON RPC-API method.
 
 !!!note
     This option is ignored in networks using [Clique](../Consensus-Protocols/Clique.md) and [IBFT 2.0](../Consensus-Protocols/IBFT.md) consensus protocols. 
@@ -776,7 +776,7 @@ The default is: `ETH`, `NET`, `WEB3`.
 rpc-http-authentication-credentials-file="/home/me/me_node/auth.toml"
 ```
 
-[Credentials file](../JSON-RPC-API/Authentication.md#credentials-file) for JSON-RPC API [authentication](../JSON-RPC-API/Authentication.md). 
+[Credentials file](../Pantheon-API/Authentication.md#credentials-file) for JSON-RPC API [authentication](../Pantheon-API/Authentication.md). 
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#credentials-files).
@@ -795,7 +795,7 @@ rpc-http-authentication-credentials-file="/home/me/me_node/auth.toml"
 rpc-http-authentication-enabled=true
 ```
 
-Set to `true` to require [authentication](../JSON-RPC-API/Authentication.md) for the HTTP JSON-RPC service.  
+Set to `true` to require [authentication](../Pantheon-API/Authentication.md) for the HTTP JSON-RPC service.  
 
 ### rpc-http-cors-origins
 
@@ -935,7 +935,7 @@ The default is: `ETH`, `NET`, `WEB3`.
 rpc-ws-authentication-credentials-file="/home/me/me_node/auth.toml"
 ```
 
-[Credentials file](../JSON-RPC-API/Authentication.md#credentials-file) for JSON-RPC API [authentication](../JSON-RPC-API/Authentication.md).
+[Credentials file](../Pantheon-API/Authentication.md#credentials-file) for JSON-RPC API [authentication](../Pantheon-API/Authentication.md).
 
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#credentials-files). 
@@ -954,10 +954,10 @@ rpc-ws-authentication-credentials-file="/home/me/me_node/auth.toml"
 rpc-ws-authentication-enabled=true
 ```
 
-Set to `true` to require [authentication](../JSON-RPC-API/Authentication.md) for the WebSockets JSON-RPC service.
+Set to `true` to require [authentication](../Pantheon-API/Authentication.md) for the WebSockets JSON-RPC service.
 
 !!! note 
-    `wscat` does not support headers. [Authentication](../JSON-RPC-API/Authentication.md) requires an authentication token to be passed in the 
+    `wscat` does not support headers. [Authentication](../Pantheon-API/Authentication.md) requires an authentication token to be passed in the 
     request header. To use authentication with WebSockets, an app that supports headers is required. 
 
 ### rpc-ws-enabled
@@ -1165,8 +1165,8 @@ This command provides password related actions.
 
 ### hash
 
-This command generates the hash of a given password. Include the hash in the [credentials file](../JSON-RPC-API/Authentication.md#credentials-file)
- for JSON-RPC API [authentication](../JSON-RPC-API/Authentication.md). 
+This command generates the hash of a given password. Include the hash in the [credentials file](../Pantheon-API/Authentication.md#credentials-file)
+ for JSON-RPC API [authentication](../Pantheon-API/Authentication.md). 
 
 ```bash tab="Syntax"
 $ pantheon password hash --password=<my-password>

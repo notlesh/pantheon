@@ -23,12 +23,11 @@ import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PacketType;
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PingPacketData;
 import tech.pegasys.pantheon.ethereum.p2p.peers.Peer;
 import tech.pegasys.pantheon.ethereum.p2p.peers.PeerBlacklist;
-import tech.pegasys.pantheon.ethereum.permissioning.NodeLocalConfigPermissioningController;
 import tech.pegasys.pantheon.ethereum.permissioning.node.NodePermissioningController;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 import tech.pegasys.pantheon.util.enode.EnodeURL;
 
-import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +69,11 @@ public class PeerDiscoveryTestHelper {
     final BytesValue peerId = keyPair.getPublicKey().getEncodedBytes();
     final int port = nextAvailablePort.incrementAndGet();
     return DiscoveryPeer.fromEnode(
-        EnodeURL.builder().nodeId(peerId).ipAddress(LOOPBACK_IP_ADDR).listeningPort(port).build());
+        EnodeURL.builder()
+            .nodeId(peerId)
+            .ipAddress(LOOPBACK_IP_ADDR)
+            .discoveryAndListeningPorts(port)
+            .build());
   }
 
   public Packet createPingPacket(
@@ -176,12 +179,11 @@ public class PeerDiscoveryTestHelper {
     private final AtomicInteger nextAvailablePort;
 
     private PeerBlacklist blacklist = new PeerBlacklist();
-    private Optional<NodeLocalConfigPermissioningController> whitelist = Optional.empty();
     private Optional<NodePermissioningController> nodePermissioningController = Optional.empty();
-    private List<URI> bootstrapPeers = Collections.emptyList();
+    private List<EnodeURL> bootnodes = Collections.emptyList();
     private boolean active = true;
 
-    public AgentBuilder(
+    private AgentBuilder(
         final Map<BytesValue, MockPeerDiscoveryAgent> agents,
         final AtomicInteger nextAvailablePort) {
       this.agents = agents;
@@ -189,7 +191,7 @@ public class PeerDiscoveryTestHelper {
     }
 
     public AgentBuilder bootstrapPeers(final List<DiscoveryPeer> peers) {
-      this.bootstrapPeers = asEnodes(peers);
+      this.bootnodes = asEnodes(peers);
       return this;
     }
 
@@ -197,17 +199,13 @@ public class PeerDiscoveryTestHelper {
       return bootstrapPeers(asList(peers));
     }
 
-    private List<URI> asEnodes(final List<DiscoveryPeer> peers) {
-      return peers.stream()
-          .map(Peer::getEnodeURLString)
-          .map(URI::create)
-          .collect(Collectors.toList());
+    public AgentBuilder bootnodes(final EnodeURL... bootnodes) {
+      this.bootnodes = Arrays.asList(bootnodes);
+      return this;
     }
 
-    public AgentBuilder whiteList(
-        final Optional<NodeLocalConfigPermissioningController> whitelist) {
-      this.whitelist = whitelist;
-      return this;
+    private List<EnodeURL> asEnodes(final List<DiscoveryPeer> peers) {
+      return peers.stream().map(Peer::getEnodeURL).collect(Collectors.toList());
     }
 
     public AgentBuilder nodePermissioningController(final NodePermissioningController controller) {
@@ -227,17 +225,12 @@ public class PeerDiscoveryTestHelper {
 
     public MockPeerDiscoveryAgent build() {
       final DiscoveryConfiguration config = new DiscoveryConfiguration();
-      config.setBootstrapPeers(bootstrapPeers);
+      config.setBootnodes(bootnodes);
       config.setBindPort(nextAvailablePort.incrementAndGet());
       config.setActive(active);
 
       return new MockPeerDiscoveryAgent(
-          SECP256K1.KeyPair.generate(),
-          config,
-          blacklist,
-          whitelist,
-          nodePermissioningController,
-          agents);
+          SECP256K1.KeyPair.generate(), config, blacklist, nodePermissioningController, agents);
     }
   }
 }

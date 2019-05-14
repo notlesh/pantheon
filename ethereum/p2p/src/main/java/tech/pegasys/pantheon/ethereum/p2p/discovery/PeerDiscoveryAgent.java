@@ -31,10 +31,8 @@ import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PeerTable;
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.PingPacketData;
 import tech.pegasys.pantheon.ethereum.p2p.discovery.internal.TimerUtil;
 import tech.pegasys.pantheon.ethereum.p2p.peers.DefaultPeerId;
-import tech.pegasys.pantheon.ethereum.p2p.peers.Peer;
 import tech.pegasys.pantheon.ethereum.p2p.peers.PeerBlacklist;
 import tech.pegasys.pantheon.ethereum.p2p.wire.messages.DisconnectMessage;
-import tech.pegasys.pantheon.ethereum.permissioning.NodeLocalConfigPermissioningController;
 import tech.pegasys.pantheon.ethereum.permissioning.node.NodePermissioningController;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.util.NetworkUtility;
@@ -74,7 +72,6 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
   protected final List<DiscoveryPeer> bootstrapPeers;
   private final List<PeerRequirement> peerRequirements = new CopyOnWriteArrayList<>();
   private final PeerBlacklist peerBlacklist;
-  private final Optional<NodeLocalConfigPermissioningController> nodeWhitelistController;
   private final Optional<NodePermissioningController> nodePermissioningController;
   private final MetricsSystem metricsSystem;
   /* The peer controller, which takes care of the state machine of peers. */
@@ -98,7 +95,6 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
       final SECP256K1.KeyPair keyPair,
       final DiscoveryConfiguration config,
       final PeerBlacklist peerBlacklist,
-      final Optional<NodeLocalConfigPermissioningController> nodeWhitelistController,
       final Optional<NodePermissioningController> nodePermissioningController,
       final MetricsSystem metricsSystem) {
     this.metricsSystem = metricsSystem;
@@ -108,13 +104,9 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
     validateConfiguration(config);
 
     this.peerBlacklist = peerBlacklist;
-    this.nodeWhitelistController = nodeWhitelistController;
     this.nodePermissioningController = nodePermissioningController;
     this.bootstrapPeers =
-        config.getBootstrapPeers().stream()
-            .map(Peer::getEnodeURL)
-            .map(DiscoveryPeer::fromEnode)
-            .collect(Collectors.toList());
+        config.getBootnodes().stream().map(DiscoveryPeer::fromEnode).collect(Collectors.toList());
 
     this.config = config;
     this.keyPair = keyPair;
@@ -166,7 +158,7 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
   }
 
   private void startController() {
-    PeerDiscoveryController controller = createController();
+    final PeerDiscoveryController controller = createController();
     this.controller = Optional.of(controller);
     controller.start();
   }
@@ -183,7 +175,6 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
         PEER_REFRESH_INTERVAL_MS,
         PeerRequirement.combine(peerRequirements),
         peerBlacklist,
-        nodeWhitelistController,
         nodePermissioningController,
         peerBondedObservers,
         peerDroppedObservers,
@@ -245,8 +236,8 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
             });
   }
 
-  public Stream<DiscoveryPeer> getPeers() {
-    return controller.map(PeerDiscoveryController::getPeers).orElse(Stream.empty());
+  public Stream<DiscoveryPeer> streamDiscoveredPeers() {
+    return controller.map(PeerDiscoveryController::streamDiscoveredPeers).orElse(Stream.empty());
   }
 
   public Optional<DiscoveryPeer> getAdvertisedPeer() {
@@ -325,7 +316,7 @@ public abstract class PeerDiscoveryAgent implements DisconnectCallback {
     checkArgument(
         config.getBindPort() == 0 || NetworkUtility.isValidPort(config.getBindPort()),
         "valid port number required");
-    checkArgument(config.getBootstrapPeers() != null, "bootstrapPeers cannot be null");
+    checkArgument(config.getBootnodes() != null, "bootstrapPeers cannot be null");
     checkArgument(config.getBucketSize() > 0, "bucket size cannot be negative nor zero");
   }
 

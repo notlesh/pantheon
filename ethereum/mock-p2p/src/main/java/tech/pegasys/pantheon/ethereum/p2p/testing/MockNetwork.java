@@ -129,7 +129,7 @@ public final class MockNetwork {
     }
 
     @Override
-    public Stream<DiscoveryPeer> getDiscoveredPeers() {
+    public Stream<DiscoveryPeer> streamDiscoveredPeers() {
       return Stream.empty();
     }
 
@@ -267,7 +267,11 @@ public final class MockNetwork {
     @Override
     public PeerInfo getPeerInfo() {
       return new PeerInfo(
-          5, "mock-network-client", capabilities, to.getEnodeURL().getListeningPort(), to.getId());
+          5,
+          "mock-network-client",
+          capabilities,
+          to.getEnodeURL().getListeningPortOrZero(),
+          to.getId());
     }
 
     @Override

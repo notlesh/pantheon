@@ -12,6 +12,7 @@
  */
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 
+import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.parameters.JsonRpcParameter;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponse;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcSuccessResponse;
@@ -33,7 +34,7 @@ public class AdminAddPeer extends AdminModifyPeer {
 
   @Override
   public String getName() {
-    return "admin_addPeer";
+    return RpcMethod.ADMIN_ADD_PEER.getMethodName();
   }
 
   @Override
@@ -41,7 +42,7 @@ public class AdminAddPeer extends AdminModifyPeer {
     LOG.debug("Adding ({}) to peers", enode);
     final EnodeURL enodeURL = EnodeURL.fromString(enode);
     final Peer peer = DefaultPeer.fromEnodeURL(enodeURL);
-    boolean addedToNetwork = peerNetwork.addMaintainConnectionPeer(peer);
+    final boolean addedToNetwork = peerNetwork.addMaintainConnectionPeer(peer);
     return new JsonRpcSuccessResponse(id, addedToNetwork);
   }
 }

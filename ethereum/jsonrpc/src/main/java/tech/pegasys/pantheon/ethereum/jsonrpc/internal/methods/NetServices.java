@@ -13,6 +13,7 @@
 package tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods;
 
 import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcConfiguration;
+import tech.pegasys.pantheon.ethereum.jsonrpc.RpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponse;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcSuccessResponse;
@@ -42,7 +43,7 @@ public class NetServices implements JsonRpcMethod {
 
   @Override
   public String getName() {
-    return "net_services";
+    return RpcMethod.NET_SERVICES.getMethodName();
   }
 
   @Override
@@ -64,11 +65,13 @@ public class NetServices implements JsonRpcMethod {
     if (p2pNetwork.isP2pEnabled()) {
       p2pNetwork
           .getLocalEnode()
+          .filter(e -> e.isListening())
           .ifPresent(
               enode ->
                   servicesMapBuilder.put(
                       "p2p",
-                      createServiceDetailsMap(enode.getIpAsString(), enode.getListeningPort())));
+                      createServiceDetailsMap(
+                          enode.getIpAsString(), enode.getListeningPort().getAsInt())));
     }
     if (metricsConfiguration.isEnabled()) {
       servicesMapBuilder.put(
