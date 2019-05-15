@@ -56,6 +56,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.RpcApis;
 import tech.pegasys.pantheon.ethereum.jsonrpc.websocket.WebSocketConfiguration;
 import tech.pegasys.pantheon.ethereum.p2p.config.DiscoveryConfiguration;
 import tech.pegasys.pantheon.ethereum.p2p.peers.StaticNodesParser;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
 import tech.pegasys.pantheon.ethereum.permissioning.LocalPermissioningConfiguration;
 import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
 import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfigurationBuilder;
@@ -254,11 +255,11 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
   private final Integer p2pPort = EnodeURL.DEFAULT_LISTENING_PORT;
 
   @Option(
-      names = {"--upnp-enabled"},
+      names = {"--nat-method"},
       description =
-          "Enable UPnP to forward ports through NAT and determine external IP address"
-              + " (default: ${DEFAULT-VALUE})")
-  private final Boolean isUpnpEnabled = false;
+          "Specify the NAT circumvention method to be used, possible values are ${COMPLETION-CANDIDATES}."
+              + " NONE disables NAT functionality. (default: ${DEFAULT-VALUE})")
+  private final NatMethod natMethod = DEFAULT_NAT_METHOD;
 
   @Option(
       names = {"--network-id"},
@@ -657,7 +658,6 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
         "--p2p-enabled",
         !p2pEnabled,
         asList(
-            "--upnp-enabled",
             "--bootnodes",
             "--discovery-enabled",
             "--max-peers",
@@ -1042,7 +1042,7 @@ public class PantheonCommand implements DefaultCommandValues, Runnable {
             .vertx(Vertx.vertx(createVertxOptions(metricsSystem)))
             .pantheonController(controller)
             .p2pEnabled(p2pEnabled)
-            .upnpEnabled(isUpnpEnabled)
+            .natMethod(natMethod)
             .discovery(peerDiscoveryEnabled)
             .ethNetworkConfig(ethNetworkConfig)
             .p2pAdvertisedHost(p2pAdvertisedHost)

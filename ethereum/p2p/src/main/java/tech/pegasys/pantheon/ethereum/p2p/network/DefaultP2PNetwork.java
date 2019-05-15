@@ -229,9 +229,13 @@ public class DefaultP2PNetwork implements P2PNetwork {
         c -> c.subscribeToUpdates(this::checkCurrentConnections));
 
     natExternalAddress = Optional.empty();
-    if (config.isUpnpEnabled()) {
-      this.natManager = new UpnpNatManager();
-      this.configureNatEnvironment();
+    switch (config.getNatMethod()) {
+      case UPNP:
+        this.natManager = new UpnpNatManager();
+        this.configureNatEnvironment();
+        break;
+      case NONE:
+        break;
     }
 
     subscribeDisconnect(peerDiscoveryAgent);

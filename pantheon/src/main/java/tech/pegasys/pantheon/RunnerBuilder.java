@@ -59,6 +59,7 @@ import tech.pegasys.pantheon.ethereum.p2p.config.SubProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.p2p.network.DefaultP2PNetwork;
 import tech.pegasys.pantheon.ethereum.p2p.peers.DefaultPeer;
 import tech.pegasys.pantheon.ethereum.p2p.peers.PeerBlacklist;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.wire.SubProtocol;
 import tech.pegasys.pantheon.ethereum.permissioning.AccountLocalConfigPermissioningController;
@@ -100,7 +101,7 @@ public class RunnerBuilder {
   private EthNetworkConfig ethNetworkConfig;
   private String p2pAdvertisedHost;
   private int p2pListenPort;
-  private boolean upnpEnabled;
+  private NatMethod natMethod = NatMethod.NONE;
   private int maxPeers;
   private JsonRpcConfiguration jsonRpcConfiguration;
   private GraphQLRpcConfiguration graphQLRpcConfiguration;
@@ -147,8 +148,8 @@ public class RunnerBuilder {
     return this;
   }
 
-  public RunnerBuilder upnpEnabled(final boolean upnpEnabled) {
-    this.upnpEnabled = upnpEnabled;
+  public RunnerBuilder natMethod(final NatMethod natMethod) {
+    this.natMethod = natMethod;
     return this;
   }
 
@@ -245,7 +246,7 @@ public class RunnerBuilder {
             .setRlpx(RlpxConfiguration.create().setBindPort(p2pListenPort).setMaxPeers(maxPeers))
             .setDiscovery(discoveryConfiguration)
             .setClientId(PantheonInfo.version())
-            .setUpnpEnabled(upnpEnabled)
+            .setNatMethod(natMethod)
             .setSupportedProtocols(subProtocols);
 
     final PeerBlacklist peerBlacklist =

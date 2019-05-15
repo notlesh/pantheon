@@ -550,21 +550,26 @@ The default is 30303. Ports must be [exposed appropriately](../Configuring-Panth
 !!!note
     This option is not used when running Pantheon from the [Docker image](../Getting-Started/Run-Docker-Image.md#exposing-ports). 
 
-### upnp-enabled
+### nat-method
 
 ```bash tab="Syntax"
---upnp-enabled
+--nat-method=UPNP
 ```
 
 ```bash tab="Example Configuration File"
-upnp-enabled=true
+nat-method="UPNP"
 ```
 
-Set to `true` to enable the UPnP discovery service.
-The default is `false`.
+Specify the method for handling NAT environments. Options are: `UPNP` and `NONE`.
+The default is `NONE`, which disables NAT functionality.
+
+!!!tip
+    `UPNP` works well with a typcial home or small office environment where a wireless router or modem provides NAT isolation. This should provide
+    automatic detection and port-forwarding. UPnP support is often disabled by default in networking equipment firmware, however, any may need to be
+    explicitly enabled.
 
 !!!note
-    This option may introduce delays during node startup, especially on networks where no UPnP gateway device can be found.
+    Option `UPNP` may introduce delays during node startup, especially on networks where no UPnP gateway device can be found.
 
 ### permissions-accounts-config-file-enabled
 
