@@ -41,6 +41,7 @@ import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.eth.sync.SyncMode;
 import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
 import tech.pegasys.pantheon.ethereum.graphqlrpc.GraphQLRpcConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcApi;
@@ -1094,7 +1095,6 @@ public class PantheonCommandTest extends CommandTestAbstract {
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
   }
-
   @Test
   public void helpShouldDisplayFastSyncOptions() {
     parseCommand("--help");
@@ -1123,6 +1123,39 @@ public class PantheonCommandTest extends CommandTestAbstract {
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString())
         .contains("Invalid value for option '--fast-sync-min-peers': 'ten' is not an int");
+  }
+
+  @Test
+  public void natMethodOptionMustBeUsed() {
+
+    parseCommand("--nat-method", "NONE");
+    verify(mockRunnerBuilder).natMethod(eq(NatMethod.NONE));
+
+    parseCommand("--nat-method", "UPNP");
+    verify(mockRunnerBuilder).natMethod(eq(NatMethod.UPNP));
+
+    assertThat(commandOutput.toString()).isEmpty();
+    assertThat(commandErrorOutput.toString()).isEmpty();
+  }
+
+  @Test
+  public void helpShouldDisplayNatMethodInfo() {
+    parseCommand("--help");
+
+    verifyZeroInteractions(mockRunnerBuilder);
+
+    assertThat(commandOutput.toString()).contains("--nat-method");
+    assertThat(commandErrorOutput.toString()).isEmpty();
+  }
+
+  @Test
+  public void natMethodPropertyDefaultIsNone() {
+    parseCommand();
+
+    verify(mockRunnerBuilder).natMethod(eq(NatMethod.NONE));
+
+    assertThat(commandOutput.toString()).isEmpty();
+    assertThat(commandErrorOutput.toString()).isEmpty();
   }
 
   @Test
