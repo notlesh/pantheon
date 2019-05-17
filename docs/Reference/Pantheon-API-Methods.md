@@ -236,7 +236,7 @@ None
     {
       "jsonrpc" : "2.0",
       "id" : 53,
-      "result" : "pantheon/1.0.0"
+      "result" : "pantheon/{{ versions.pantheon_stable }}"
     }
     ```
 
@@ -286,11 +286,12 @@ None
 - `2` - Morden Testnet  (deprecated)
 - `3` - Ropsten Testnet
 - `4` - Rinkeby Testnet
+- `5` - Goerli Testnet
 - `42` - Kovan Testnet
 
 !!! example
     ```bash tab="curl HTTP request"
-    curl -X POST --data ''{"jsonrpc":"2.0","method":"net_version","params":[],"id":53}' http://127.0.0.1:8545
+    curl -X POST --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":53}' http://127.0.0.1:8545
     ```
     
     ```bash tab="wscat WS request"
@@ -645,7 +646,14 @@ None
 Returns a list of account addresses that the client owns.
 
 !!!note
+<<<<<<< HEAD:docs/Reference/JSON-RPC-API-Methods.md
+    This method returns an empty object because Pantheon [doesn't support key management](../Pantheon-API/Using-JSON-RPC-API.md#account-management)
+    inside the client.
+    
+    Use [EthSigner](http://docs.ethsigner.pegasys.tech/en/latest/) with Pantheon to provide access to your key store and sign transactions.
+=======
     This method returns an empty object because Pantheon [does not support account management](../Pantheon-API/Using-JSON-RPC-API.md#account-management).
+>>>>>>> be69db85885db2fbe6c0cee53fea63cccb65baa8:docs/Reference/Pantheon-API-Methods.md
 
 **Parameters**
 
@@ -955,7 +963,9 @@ You can interact with contracts using [eth_sendRawTransaction or eth_call](../Us
 To avoid exposing your private key, create signed transactions offline and send the signed transaction data using `eth_sendRawTransaction`. 
 
 !!!important
-    Pantheon does not implement [eth_sendTransaction](../Pantheon-API/Using-JSON-RPC-API.md#account-management).
+    Pantheon does not implement [eth_sendTransaction](../Pantheon-API/Using-JSON-RPC-API.md#account-management). 
+    
+    [EthSigner](https://docs.ethsigner.pegasys.tech/en/latest/) provides transaction signing and implements [`eth_sendTransaction`](https://docs.ethsigner.pegasys.tech/en/latest/Using-EthSigner#eth_sendTransaction). 
 
 **Parameters**
 
