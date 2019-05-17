@@ -37,6 +37,12 @@ import org.jupnp.support.igd.callback.PortMappingAdd;
 import org.jupnp.support.model.Connection;
 import org.jupnp.support.model.PortMapping;
 
+/**
+ * Manages underlying UPnP library "jupnp" and provides abstractions for asynchronously interacting
+ * with the NAT environment through UPnP.
+ *
+ * <p>This class is not thread-safe.
+ */
 public class UpnpNatManager {
   protected static final Logger LOG = LogManager.getLogger();
 
@@ -46,6 +52,9 @@ public class UpnpNatManager {
   private boolean started = false;
   private UpnpService upnpService = null;
   private RegistryListener registryListener = null;
+
+  // internally-managed future. external queries for IP addresses will be copy()ed from this.
+  private CompletableFuture<String> externalIpQueryFuture = null;
 
   private Map<String, RemoteService> recognizedServices;
   private String discoveredOnLocalAddress = null;
@@ -102,6 +111,8 @@ public class UpnpNatManager {
 
     // TODO: does jupnp do this automatically?
     upnpService.getControlPoint().search(new STAllHeader());
+
+    initiateExternalIpQuery();
 
     started = true;
   }
@@ -191,59 +202,69 @@ public class UpnpNatManager {
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   public CompletableFuture<String> queryExternalIPAddress() {
+    return externalIpQueryFuture.copy();
+  }
 
+  /**
+   * Sends a UPnP request to the discovered IGD for the external ip address.
+   *
+   * @return A CompletableFuture that can be used to query the result (or error).
+   */
+  private void initiateExternalIpQuery() {
     CompletableFuture<String> upnpQueryFuture = new CompletableFuture<>();
 
-    return discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
-        .thenCompose(
-            service -> {
+    externalIpQueryFuture =
+        discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
+            .thenCompose(
+                service -> {
 
-              // our query, which will be handled asynchronously by the jupnp library
-              GetExternalIP callback =
-                  new GetExternalIP(service) {
+                  // our query, which will be handled asynchronously by the jupnp library
+                  GetExternalIP callback =
+                      new GetExternalIP(service) {
 
-                    /**
-                     * Override the success(ActionInvocation) version of success so that we can take
-                     * a peek at the network interface that we discovered this on.
-                     *
-                     * <p>Because the underlying jupnp library omits generics info in this method
-                     * signature, we must too when we override it.
-                     */
-                    @Override
-                    @SuppressWarnings("rawtypes")
-                    public void success(final ActionInvocation invocation) {
-                      RemoteService service = (RemoteService) invocation.getAction().getService();
-                      RemoteDevice device = service.getDevice();
-                      RemoteDeviceIdentity identity = device.getIdentity();
+                        /**
+                         * Override the success(ActionInvocation) version of success so that we can
+                         * take a peek at the network interface that we discovered this on.
+                         *
+                         * <p>Because the underlying jupnp library omits generics info in this
+                         * method signature, we must too when we override it.
+                         */
+                        @Override
+                        @SuppressWarnings("rawtypes")
+                        public void success(final ActionInvocation invocation) {
+                          RemoteService service =
+                              (RemoteService) invocation.getAction().getService();
+                          RemoteDevice device = service.getDevice();
+                          RemoteDeviceIdentity identity = device.getIdentity();
 
-                      discoveredOnLocalAddress =
-                          identity.getDiscoveredOnLocalAddress().getHostAddress();
+                          discoveredOnLocalAddress =
+                              identity.getDiscoveredOnLocalAddress().getHostAddress();
 
-                      super.success(invocation);
-                    }
+                          super.success(invocation);
+                        }
 
-                    @Override
-                    protected void success(final String result) {
-                      upnpQueryFuture.complete(result);
-                    }
+                        @Override
+                        protected void success(final String result) {
+                          upnpQueryFuture.complete(result);
+                        }
 
-                    /**
-                     * Because the underlying jupnp library omits generics info in this method
-                     * signature, we must too when we override it.
-                     */
-                    @Override
-                    @SuppressWarnings("rawtypes")
-                    public void failure(
-                        final ActionInvocation invocation,
-                        final UpnpResponse operation,
-                        final String msg) {
-                      upnpQueryFuture.completeExceptionally(new Exception(msg));
-                    }
-                  };
-              upnpService.getControlPoint().execute(callback);
+                        /**
+                         * Because the underlying jupnp library omits generics info in this method
+                         * signature, we must too when we override it.
+                         */
+                        @Override
+                        @SuppressWarnings("rawtypes")
+                        public void failure(
+                            final ActionInvocation invocation,
+                            final UpnpResponse operation,
+                            final String msg) {
+                          upnpQueryFuture.completeExceptionally(new Exception(msg));
+                        }
+                      };
+                  upnpService.getControlPoint().execute(callback);
 
-              return upnpQueryFuture;
-            });
+                  return upnpQueryFuture;
+                });
   }
 
   /**
