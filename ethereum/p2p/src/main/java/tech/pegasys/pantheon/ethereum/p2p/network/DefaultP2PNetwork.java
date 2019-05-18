@@ -37,6 +37,7 @@ import tech.pegasys.pantheon.ethereum.p2p.network.netty.TimeoutHandler;
 import tech.pegasys.pantheon.ethereum.p2p.peers.Peer;
 import tech.pegasys.pantheon.ethereum.p2p.permissions.PeerPermissions;
 import tech.pegasys.pantheon.ethereum.p2p.permissions.PeerPermissionsBlacklist;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
 import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.wire.PeerInfo;
@@ -154,7 +155,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
   private volatile Optional<EnodeURL> localEnode = Optional.empty();
   private volatile Optional<PeerInfo> ourPeerInfo = Optional.empty();
 
-  private UpnpNatManager natManager;
+  private Optional<UpnpNatManager> natManager;
   private Optional<String> natExternalAddress;
 
   private final PeerPermissions peerPermissions;
@@ -195,6 +196,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
    * @param peerPermissions An object that determines whether peers are allowed to connect
    * @param metricsSystem The metrics system to capture metrics with.
    * @param nodePermissioningController Controls node permissioning.
+   * @param natManager The NAT environment manager.
    * @param blockchain The blockchain to subscribe to BlockAddedEvents.
    */
   DefaultP2PNetwork(
@@ -205,6 +207,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
       final PeerPermissions peerPermissions,
       final MetricsSystem metricsSystem,
       final Optional<NodePermissioningController> nodePermissioningController,
+      final Optional<UpnpNatManager> natManager,
       final Blockchain blockchain) {
 
     this.peerDiscoveryAgent = peerDiscoveryAgent;
@@ -212,6 +215,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
     this.config = config;
     this.supportedCapabilities = supportedCapabilities;
     this.nodePermissioningController = nodePermissioningController;
+    this.natManager = natManager;
     this.blockchain = Optional.ofNullable(blockchain);
     this.peerMaintainConnectionList = new HashSet<>();
     this.connections = new PeerConnectionRegistry(metricsSystem);
@@ -230,13 +234,8 @@ public class DefaultP2PNetwork implements P2PNetwork {
         c -> c.subscribeToUpdates(this::checkCurrentConnections));
 
     natExternalAddress = Optional.empty();
-    switch (config.getNatMethod()) {
-      case UPNP:
-        this.natManager = new UpnpNatManager();
-        this.configureNatEnvironment();
-        break;
-      case NONE:
-        break;
+    if (config.getNatMethod() != NatMethod.NONE) {
+      this.configureNatEnvironment();
     }
 
     subscribeDisconnect(reputationManager);
@@ -742,8 +741,8 @@ public class DefaultP2PNetwork implements P2PNetwork {
   }
 
   private void configureNatEnvironment() {
-    this.natManager.start();
-    CompletableFuture<String> natQueryFuture = this.natManager.queryExternalIPAddress();
+    this.natManager.get().start();
+    CompletableFuture<String> natQueryFuture = this.natManager.get().queryExternalIPAddress();
     String externalAddress = null;
     try {
       externalAddress = natQueryFuture.get();
@@ -751,10 +750,13 @@ public class DefaultP2PNetwork implements P2PNetwork {
       // if we're in a NAT environment, request port forwards for every port we
       // intend to bind to
       if (externalAddress != null) {
-        this.natManager.requestPortForward(
-            this.config.getDiscovery().getBindPort(), "TCP", "pantheon-discovery");
-        this.natManager.requestPortForward(
-            this.config.getRlpx().getBindPort(), "TCP", "pantheon-rlpx");
+        this.natManager
+            .get()
+            .requestPortForward(
+                this.config.getDiscovery().getBindPort(), "TCP", "pantheon-discovery");
+        this.natManager
+            .get()
+            .requestPortForward(this.config.getRlpx().getBindPort(), "TCP", "pantheon-rlpx");
       }
 
     } catch (Exception e) {
@@ -772,6 +774,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
     private PeerPermissions peerPermissions = PeerPermissions.noop();
     private MetricsSystem metricsSystem;
     private Optional<NodePermissioningController> nodePermissioningController = Optional.empty();
+    private Optional<UpnpNatManager> natManager = Optional.empty();
     private Blockchain blockchain = null;
     private Vertx vertx;
 
@@ -791,6 +794,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
           peerPermissions,
           metricsSystem,
           nodePermissioningController,
+          natManager,
           blockchain);
     }
 
@@ -868,6 +872,16 @@ public class DefaultP2PNetwork implements P2PNetwork {
     public Builder nodePermissioningController(
         final Optional<NodePermissioningController> nodePermissioningController) {
       this.nodePermissioningController = nodePermissioningController;
+      return this;
+    }
+
+    public Builder natManager(final UpnpNatManager natManager) {
+      this.natManager = Optional.ofNullable(natManager);
+      return this;
+    }
+
+    public Builder natManager(final Optional<UpnpNatManager> natManager) {
+      this.natManager = natManager;
       return this;
     }
 

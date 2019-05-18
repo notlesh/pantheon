@@ -29,6 +29,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcNoRespons
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponse;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponseType;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcUnauthorizedResponse;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.metrics.LabelledMetric;
 import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
@@ -81,6 +82,7 @@ public class JsonRpcHttpService {
   private final Vertx vertx;
   private final JsonRpcConfiguration config;
   private final RpcMethods rpcMethods;
+  private final Optional<UpnpNatManager> natManager;
   private final Path dataDir;
   private final LabelledMetric<OperationTimer> requestTimer;
 
@@ -95,6 +97,7 @@ public class JsonRpcHttpService {
    * @param dataDir The data directory where requests can be buffered
    * @param config Configuration for the rpc methods being loaded
    * @param metricsSystem The metrics service that activities should be reported to
+   * @param natManager The NAT environment manager.
    * @param methods The json rpc methods that should be enabled
    */
   public JsonRpcHttpService(
@@ -102,12 +105,14 @@ public class JsonRpcHttpService {
       final Path dataDir,
       final JsonRpcConfiguration config,
       final MetricsSystem metricsSystem,
+      final Optional<UpnpNatManager> natManager,
       final Map<String, JsonRpcMethod> methods) {
     this(
         vertx,
         dataDir,
         config,
         metricsSystem,
+        natManager,
         methods,
         AuthenticationService.create(vertx, config));
   }
@@ -117,6 +122,7 @@ public class JsonRpcHttpService {
       final Path dataDir,
       final JsonRpcConfiguration config,
       final MetricsSystem metricsSystem,
+      final Optional<UpnpNatManager> natManager,
       final Map<String, JsonRpcMethod> methods,
       final Optional<AuthenticationService> authenticationService) {
     this.dataDir = dataDir;
@@ -129,6 +135,7 @@ public class JsonRpcHttpService {
     validateConfig(config);
     this.config = config;
     this.vertx = vertx;
+    this.natManager = natManager;
     this.rpcMethods = new RpcMethods(methods);
     this.authenticationService = authenticationService;
   }
@@ -142,6 +149,12 @@ public class JsonRpcHttpService {
 
   public CompletableFuture<?> start() {
     LOG.info("Starting JsonRPC service on {}:{}", config.getHost(), config.getPort());
+
+    // Request that a NAT port forward for our server port
+    if (natManager.isPresent()) {
+      natManager.get().requestPortForward(config.getPort(), "TCP", "partheon-json-rpc");
+    }
+
     // Create the HTTP server and a router object.
     httpServer =
         vertx.createHttpServer(

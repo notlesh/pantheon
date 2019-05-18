@@ -60,6 +60,7 @@ import tech.pegasys.pantheon.ethereum.p2p.network.DefaultP2PNetwork;
 import tech.pegasys.pantheon.ethereum.p2p.peers.DefaultPeer;
 import tech.pegasys.pantheon.ethereum.p2p.permissions.PeerPermissionsBlacklist;
 import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.wire.SubProtocol;
 import tech.pegasys.pantheon.ethereum.permissioning.AccountLocalConfigPermissioningController;
@@ -268,6 +269,8 @@ public class RunnerBuilder {
         buildNodePermissioningController(
             bootnodes, synchronizer, transactionSimulator, localNodeId);
 
+    final Optional<UpnpNatManager> natManager = buildNatManager(natMethod);
+
     NetworkBuilder inactiveNetwork = (caps) -> new NoopP2PNetwork();
     NetworkBuilder activeNetwork =
         (caps) ->
@@ -279,6 +282,7 @@ public class RunnerBuilder {
                 .metricsSystem(metricsSystem)
                 .supportedCapabilities(caps)
                 .nodePermissioningController(nodePermissioningController)
+                .natManager(natManager)
                 .blockchain(context.getBlockchain())
                 .build();
 
@@ -345,7 +349,7 @@ public class RunnerBuilder {
       jsonRpcHttpService =
           Optional.of(
               new JsonRpcHttpService(
-                  vertx, dataDir, jsonRpcConfiguration, metricsSystem, jsonRpcMethods));
+                  vertx, dataDir, jsonRpcConfiguration, metricsSystem, natManager, jsonRpcMethods));
     }
 
     Optional<GraphQLRpcHttpService> graphQLRpcHttpService = Optional.empty();
@@ -437,6 +441,16 @@ public class RunnerBuilder {
         config ->
             new NodePermissioningControllerFactory()
                 .create(config, synchronizer, fixedNodes, localNodeId, transactionSimulator));
+  }
+
+  private Optional<UpnpNatManager> buildNatManager(final NatMethod natMethod) {
+    switch (natMethod) {
+      case UPNP:
+        return Optional.of(new UpnpNatManager());
+      case NONE:
+      default:
+        return Optional.ofNullable(null);
+    }
   }
 
   @VisibleForTesting
