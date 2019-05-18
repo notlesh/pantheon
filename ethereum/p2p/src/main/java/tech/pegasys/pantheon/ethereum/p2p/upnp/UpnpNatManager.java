@@ -245,6 +245,13 @@ public class UpnpNatManager {
 
                         @Override
                         protected void success(final String result) {
+
+                          LOG.info(
+                              "External IP address "
+                                  + result
+                                  + " detected for internal address "
+                                  + discoveredOnLocalAddress);
+
                           upnpQueryFuture.complete(result);
                         }
 
@@ -306,6 +313,35 @@ public class UpnpNatManager {
   }
 
   /**
+   * Convenience function to call {@link #requestPortForward(PortMapping)} with the following
+   * defaults:
+   *
+   * <p>enabled: true leaseDurationSeconds: 0 (indefinite) remoteHost: null internalClient: the
+   * local address used to discover gateway
+   *
+   * <p>In addition, port is used for both internal and external port values.
+   *
+   * @param port is the port to be used for both internal and external port values
+   * @param protocol is either "udp" or "tcp"
+   * @param description is a free-form description, often displayed in router UIs
+   * @return A CompletableFuture which will provide the results of the request
+   */
+  public CompletableFuture<Void> requestPortForward(
+      final int port, final String protocol, final String description) {
+
+    return this.requestPortForward(
+        new PortMapping(
+            true,
+            new UnsignedIntegerFourBytes(0),
+            null,
+            new UnsignedIntegerTwoBytes(port),
+            new UnsignedIntegerTwoBytes(port),
+            null,
+            PortMapping.Protocol.valueOf(protocol),
+            description));
+  }
+
+  /**
    * Convenience function to avoid use of PortMapping object. Takes the same arguments as are in a
    * PortMapping object and constructs such an object for the caller.
    *
@@ -322,7 +358,7 @@ public class UpnpNatManager {
    * @param description is a free-form description, often displayed in router UIs
    * @return A CompletableFuture which will provide the results of the request
    */
-  public CompletableFuture<String> requestPortForward(
+  public CompletableFuture<Void> requestPortForward(
       final boolean enabled,
       final int leaseDurationSeconds,
       final String remoteHost,
@@ -350,13 +386,19 @@ public class UpnpNatManager {
    * @param portMapping is a portMapping object describing the desired port mapping parameters.
    * @return A CompletableFuture that can be used to query the result (or error).
    */
-  private CompletableFuture<String> requestPortForward(final PortMapping portMapping) {
+  private CompletableFuture<Void> requestPortForward(final PortMapping portMapping) {
 
-    CompletableFuture<String> upnpQueryFuture = new CompletableFuture<>();
+    CompletableFuture<Void> upnpQueryFuture = new CompletableFuture<>();
 
     return discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
         .thenCompose(
             service -> {
+
+              // at this point, we should have the local address we discovered the IGD on,
+              // so we can prime the NewInternalClient field if it was omitted
+              if (null == portMapping.getInternalClient()) {
+                portMapping.setInternalClient(discoveredOnLocalAddress);
+              }
 
               // our query, which will be handled asynchronously by the jupnp library
               PortMappingAdd callback =
@@ -368,8 +410,15 @@ public class UpnpNatManager {
                     @Override
                     @SuppressWarnings("rawtypes")
                     public void success(final ActionInvocation invocation) {
-                      // TODO: return value here?
-                      upnpQueryFuture.complete("TODO");
+                      LOG.info(
+                          "Port forward request for "
+                              + portMapping.getProtocol()
+                              + " "
+                              + portMapping.getInternalPort()
+                              + " -> "
+                              + portMapping.getExternalPort()
+                              + " succeeded");
+                      upnpQueryFuture.complete(null);
                     }
 
                     /**
@@ -382,9 +431,26 @@ public class UpnpNatManager {
                         final ActionInvocation invocation,
                         final UpnpResponse operation,
                         final String msg) {
+                      LOG.warn(
+                          "Port forward request for "
+                              + portMapping.getProtocol()
+                              + " "
+                              + portMapping.getInternalPort()
+                              + " -> "
+                              + portMapping.getExternalPort()
+                              + " failed");
                       upnpQueryFuture.completeExceptionally(new Exception(msg));
                     }
                   };
+
+              LOG.info(
+                  "Requesting port forward "
+                      + portMapping.getProtocol()
+                      + " "
+                      + portMapping.getInternalPort()
+                      + " -> "
+                      + portMapping.getExternalPort());
+
               upnpService.getControlPoint().execute(callback);
 
               return upnpQueryFuture;

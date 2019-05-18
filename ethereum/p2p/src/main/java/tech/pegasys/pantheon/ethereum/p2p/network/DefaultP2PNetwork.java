@@ -61,7 +61,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -751,36 +750,13 @@ public class DefaultP2PNetwork implements P2PNetwork {
 
       // if we're in a NAT environment, request port forwards for every port we
       // intend to bind to
-      // TODO: replace with a more explicit condition (e.g. "are we behind NAT?")
       if (externalAddress != null) {
-        String internalAddress = this.natManager.getDiscoveredOnLocalAddress();
-        LOG.info(
-            "External IP address "
-                + externalAddress
-                + " detected for internal address "
-                + internalAddress);
-
-        Set<Integer> desiredPorts = new HashSet<Integer>();
-
-        int discoveryPort = this.config.getDiscovery().getBindPort();
-        if (discoveryPort != 0) {
-          desiredPorts.add(discoveryPort);
-        }
-
-        int rlpxPort = this.config.getRlpx().getBindPort();
-        if (rlpxPort != 0) {
-          desiredPorts.add(rlpxPort);
-        }
-
-        for (int port : desiredPorts) {
-          LOG.info("Requesting port forward for port " + port + "...");
-          CompletableFuture<String> portForwardRequestFuture =
-              this.natManager.requestPortForward(
-                  true, 0, null, port, port, internalAddress, "TCP", "pantheon-rlpx");
-          String result = portForwardRequestFuture.get();
-          LOG.info("Port forward result: " + result);
-        }
+        this.natManager.requestPortForward(
+            this.config.getDiscovery().getBindPort(), "TCP", "pantheon-discovery");
+        this.natManager.requestPortForward(
+            this.config.getRlpx().getBindPort(), "TCP", "pantheon-rlpx");
       }
+
     } catch (Exception e) {
       LOG.error("Error configuring NAT environment", e);
     }
