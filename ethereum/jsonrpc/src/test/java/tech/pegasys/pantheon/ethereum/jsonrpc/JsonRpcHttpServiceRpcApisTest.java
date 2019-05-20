@@ -207,7 +207,12 @@ public class JsonRpcHttpServiceRpcApisTest {
                     mock(MetricsConfiguration.class)));
     final JsonRpcHttpService jsonRpcHttpService =
         new JsonRpcHttpService(
-            vertx, folder.newFolder().toPath(), config, new NoOpMetricsSystem(), rpcMethods);
+            vertx,
+            folder.newFolder().toPath(),
+            config,
+            new NoOpMetricsSystem(),
+            Optional.empty(),
+            rpcMethods);
     jsonRpcHttpService.start().join();
 
     baseUrl = jsonRpcHttpService.url();
@@ -296,6 +301,7 @@ public class JsonRpcHttpServiceRpcApisTest {
             folder.newFolder().toPath(),
             jsonRpcConfiguration,
             new NoOpMetricsSystem(),
+            Optional.empty(),
             rpcMethods);
     jsonRpcHttpService.start().join();
 

@@ -199,7 +199,12 @@ public abstract class AbstractEthJsonRpcHttpServiceTest {
     config.setPort(0);
     service =
         new JsonRpcHttpService(
-            vertx, folder.newFolder().toPath(), config, new NoOpMetricsSystem(), methods);
+            vertx,
+            folder.newFolder().toPath(),
+            config,
+            new NoOpMetricsSystem(),
+            Optional.empty(),
+            methods);
     service.start().join();
 
     client = new OkHttpClient();

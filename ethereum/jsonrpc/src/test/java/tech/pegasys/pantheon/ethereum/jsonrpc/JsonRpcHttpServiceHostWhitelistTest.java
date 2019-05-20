@@ -120,7 +120,12 @@ public class JsonRpcHttpServiceHostWhitelistTest {
 
   private JsonRpcHttpService createJsonRpcHttpService() throws Exception {
     return new JsonRpcHttpService(
-        vertx, folder.newFolder().toPath(), jsonRpcConfig, new NoOpMetricsSystem(), rpcMethods);
+        vertx,
+        folder.newFolder().toPath(),
+        jsonRpcConfig,
+        new NoOpMetricsSystem(),
+        Optional.empty(),
+        rpcMethods);
   }
 
   private static JsonRpcConfiguration createJsonRpcConfig() {

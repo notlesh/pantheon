@@ -159,7 +159,12 @@ public class JsonRpcHttpServiceLoginTest {
     config.setAuthenticationCredentialsFile(authTomlPath);
 
     return new JsonRpcHttpService(
-        vertx, folder.newFolder().toPath(), config, new NoOpMetricsSystem(), rpcMethods);
+        vertx,
+        folder.newFolder().toPath(),
+        config,
+        new NoOpMetricsSystem(),
+        Optional.empty(),
+        rpcMethods);
   }
 
   private static JsonRpcConfiguration createJsonRpcConfig() {

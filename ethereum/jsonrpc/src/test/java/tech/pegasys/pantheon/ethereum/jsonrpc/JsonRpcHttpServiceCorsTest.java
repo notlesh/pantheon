@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
 
 import java.util.HashMap;
+import java.util.Optional;
 
 import com.google.common.collect.Lists;
 import io.vertx.core.Vertx;
@@ -188,7 +189,12 @@ public class JsonRpcHttpServiceCorsTest {
 
     final JsonRpcHttpService jsonRpcHttpService =
         new JsonRpcHttpService(
-            vertx, folder.newFolder().toPath(), config, new NoOpMetricsSystem(), new HashMap<>());
+            vertx,
+            folder.newFolder().toPath(),
+            config,
+            new NoOpMetricsSystem(),
+            Optional.empty(),
+            new HashMap<>());
     jsonRpcHttpService.start().join();
 
     return jsonRpcHttpService;

@@ -149,7 +149,12 @@ public class JsonRpcHttpServiceTest {
   private static JsonRpcHttpService createJsonRpcHttpService(final JsonRpcConfiguration config)
       throws Exception {
     return new JsonRpcHttpService(
-        vertx, folder.newFolder().toPath(), config, new NoOpMetricsSystem(), rpcMethods);
+        vertx,
+        folder.newFolder().toPath(),
+        config,
+        new NoOpMetricsSystem(),
+        Optional.empty(),
+        rpcMethods);
   }
 
   private static JsonRpcHttpService createJsonRpcHttpService() throws Exception {
@@ -158,6 +163,7 @@ public class JsonRpcHttpServiceTest {
         folder.newFolder().toPath(),
         createJsonRpcConfig(),
         new NoOpMetricsSystem(),
+        Optional.empty(),
         rpcMethods);
   }
 
