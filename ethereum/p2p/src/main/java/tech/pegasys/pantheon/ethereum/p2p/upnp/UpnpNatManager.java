@@ -202,7 +202,7 @@ public class UpnpNatManager {
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   public CompletableFuture<String> queryExternalIPAddress() {
-    return externalIpQueryFuture.copy();
+    return externalIpQueryFuture.thenApply(x -> x);
   }
 
   /**
