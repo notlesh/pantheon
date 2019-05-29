@@ -84,4 +84,21 @@ public final class UpnpNatManagerTest {
             })
         .isInstanceOf(IllegalStateException.class);
   }
+
+  @Test
+  public void queryIpThrowsWhenStopped() throws Exception {
+
+    assertThatThrownBy(
+            () -> {
+              upnpManager.queryExternalIPAddress();
+            })
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  public void queryIpDoesNotThrowWhenStarted() throws Exception {
+    upnpManager.start();
+
+    upnpManager.queryExternalIPAddress();
+  }
 }

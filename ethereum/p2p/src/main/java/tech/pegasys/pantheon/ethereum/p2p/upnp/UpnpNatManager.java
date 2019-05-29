@@ -80,6 +80,10 @@ public class UpnpNatManager {
   public UpnpNatManager(final UpnpService service) {
     upnpService = service;
 
+    // prime our recognizedServices map so we can use its key-set later
+    recognizedServices = new HashMap<>();
+    recognizedServices.put(SERVICE_TYPE_WAN_IP_CONNECTION, null);
+
     // registry listener to observe new devices and look for specific services
     registryListener =
         new DefaultRegistryListener() {
@@ -89,10 +93,6 @@ public class UpnpNatManager {
             inspectDeviceRecursive(device, recognizedServices.keySet());
           }
         };
-
-    // prime our recognizedServices map so we can use its key-set later
-    recognizedServices = new HashMap<>();
-    recognizedServices.put(SERVICE_TYPE_WAN_IP_CONNECTION, null);
   }
 
   /**
@@ -100,7 +100,7 @@ public class UpnpNatManager {
    *
    * @throws IllegalStateException if already started.
    */
-  public void start() {
+  public synchronized void start() {
     if (started) {
       throw new IllegalStateException("Cannot start already-started service");
     }
@@ -122,7 +122,7 @@ public class UpnpNatManager {
    *
    * @throws IllegalStateException if stopped.
    */
-  public void stop() {
+  public synchronized void stop() {
     if (!started) {
       throw new IllegalStateException("Cannot stop already-stopped service");
     }
@@ -138,7 +138,7 @@ public class UpnpNatManager {
    * @param type is the type descriptor of the desired service
    * @return the first instance of the given type, or null if none
    */
-  private RemoteService getService(final String type) {
+  private synchronized RemoteService getService(final String type) {
     return recognizedServices.get(type);
   }
 
@@ -147,7 +147,7 @@ public class UpnpNatManager {
    *
    * @return the WANIPConnection Service if we have found it, or null.
    */
-  public RemoteService getWANIPConnectionService() {
+  public synchronized RemoteService getWANIPConnectionService() {
     return getService(SERVICE_TYPE_WAN_IP_CONNECTION);
   }
 
@@ -201,12 +201,18 @@ public class UpnpNatManager {
    *
    * @return A CompletableFuture that can be used to query the result (or error).
    */
-  public CompletableFuture<String> queryExternalIPAddress() {
+  public synchronized CompletableFuture<String> queryExternalIPAddress() {
+    if (!started) {
+      throw new IllegalStateException("Cannot call queryExternalIPAddress() when in stopped state");
+    }
     return externalIpQueryFuture.thenApply(x -> x);
   }
 
   /**
    * Sends a UPnP request to the discovered IGD for the external ip address.
+   *
+   * <p>Note that this is not synchronized, as it is expected to be called within an
+   * already-synchronized context ({@link #start()}).
    *
    * @return A CompletableFuture that can be used to query the result (or error).
    */
@@ -469,7 +475,9 @@ public class UpnpNatManager {
       if (serviceTypes.contains(serviceType)) {
         // TODO: handle case where service is already "recognized" as this could lead to
         // some odd bugs
-        recognizedServices.put(serviceType, service);
+        synchronized (this) {
+          recognizedServices.put(serviceType, service);
+        }
       }
     }
     for (RemoteDevice subDevice : device.getEmbeddedDevices()) {
