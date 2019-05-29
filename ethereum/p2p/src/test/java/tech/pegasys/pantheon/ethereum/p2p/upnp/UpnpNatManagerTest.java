@@ -12,17 +12,32 @@
  */
 package tech.pegasys.pantheon.ethereum.p2p.upnp;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.notNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URL;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.jupnp.UpnpService;
 import org.jupnp.controlpoint.ControlPoint;
+import org.jupnp.model.meta.DeviceDetails;
+import org.jupnp.model.meta.RemoteDevice;
+import org.jupnp.model.meta.RemoteDeviceIdentity;
+import org.jupnp.model.meta.RemoteService;
+import org.jupnp.model.types.UDADeviceType;
+import org.jupnp.model.types.UDAServiceId;
+import org.jupnp.model.types.UDAServiceType;
+import org.jupnp.model.types.UDN;
 import org.jupnp.registry.Registry;
+import org.jupnp.registry.RegistryListener;
+import org.mockito.ArgumentCaptor;
 
 /** Tests for {@link tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager}. */
 public final class UpnpNatManagerTest {
@@ -100,5 +115,44 @@ public final class UpnpNatManagerTest {
     upnpManager.start();
 
     upnpManager.queryExternalIPAddress();
+  }
+
+  @Test
+  public void registryListenerShouldDetectService() throws Exception {
+    upnpManager.start();
+
+    ArgumentCaptor<RegistryListener> captor = ArgumentCaptor.forClass(RegistryListener.class);
+    verify(mockedRegistry).addListener(captor.capture());
+    RegistryListener listener = captor.getValue();
+
+    assertThat(listener).isNotNull();
+
+    // create a remote device that matches the WANIPConnection service that UpnpNatManager
+    // is looking for and directly call the registry listener
+    RemoteService wanIpConnectionService =
+        new RemoteService(
+            new UDAServiceType("WANIPConnection"),
+            new UDAServiceId("WANIPConnectionService"),
+            URI.create("/x_wanipconnection.xml"),
+            URI.create("/control?WANIPConnection"),
+            URI.create("/event?WANIPConnection"),
+            null,
+            null);
+
+    RemoteDevice device =
+        new RemoteDevice(
+            new RemoteDeviceIdentity(
+                UDN.valueOf(UpnpNatManager.SERVICE_TYPE_WAN_IP_CONNECTION),
+                3600,
+                new URL("http://127.63.31.15/"),
+                null,
+                InetAddress.getByName("127.63.31.15")),
+            new UDADeviceType("WANConnectionDevice"),
+            new DeviceDetails("WAN Connection Device"),
+            wanIpConnectionService);
+
+    listener.remoteDeviceAdded(mockedRegistry, device);
+
+    assertThat(upnpManager.getWANIPConnectionService()).isEqualTo(wanIpConnectionService);
   }
 }
