@@ -74,8 +74,7 @@ public class P2PNetworkTest {
   private final NetworkingConfiguration config =
       NetworkingConfiguration.create()
           .setDiscovery(DiscoveryConfiguration.create().setActive(false))
-          .setSupportedProtocols(subProtocol())
-          .setRlpx(RlpxConfiguration.create().setBindPort(0));
+          .setRlpx(RlpxConfiguration.create().setBindPort(0).setSupportedProtocols(subProtocol()));
 
   private final String selfEnodeString =
       "enode://5f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@192.168.0.10:1111";
@@ -153,8 +152,11 @@ public class P2PNetworkTest {
     final NetworkingConfiguration listenerConfig =
         NetworkingConfiguration.create()
             .setDiscovery(DiscoveryConfiguration.create().setActive(false))
-            .setSupportedProtocols(subProtocol())
-            .setRlpx(RlpxConfiguration.create().setBindPort(0).setMaxPeers(maxPeers));
+            .setRlpx(
+                RlpxConfiguration.create()
+                    .setBindPort(0)
+                    .setMaxPeers(maxPeers)
+                    .setSupportedProtocols(subProtocol()));
     try (final P2PNetwork listener = builder().keyPair(listenKp).config(listenerConfig).build();
         final P2PNetwork connector1 = builder().build();
         final P2PNetwork connector2 = builder().build()) {
@@ -246,9 +248,6 @@ public class P2PNetworkTest {
       // Blacklist the remote peer
       localBlacklist.add(remotePeer);
 
-      localNetwork.start();
-      remoteNetwork.start();
-
       // Setup disconnect listener
       final CompletableFuture<PeerConnection> peerFuture = new CompletableFuture<>();
       final CompletableFuture<DisconnectReason> reasonFuture = new CompletableFuture<>();
@@ -279,7 +278,7 @@ public class P2PNetworkTest {
 
     final NodeLocalConfigPermissioningController localWhitelistController =
         new NodeLocalConfigPermissioningController(
-            config, Collections.emptyList(), selfEnode.getNodeId());
+            config, Collections.emptyList(), selfEnode.getNodeId(), new NoOpMetricsSystem());
     // turn on whitelisting by adding a different node NOT remote node
     localWhitelistController.addNode(
         EnodeURL.builder()

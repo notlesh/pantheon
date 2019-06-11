@@ -64,10 +64,10 @@ import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.ethereum.p2p.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.wire.SubProtocol;
 import tech.pegasys.pantheon.ethereum.permissioning.AccountLocalConfigPermissioningController;
-import tech.pegasys.pantheon.ethereum.permissioning.LocalPermissioningConfiguration;
 import tech.pegasys.pantheon.ethereum.permissioning.NodeLocalConfigPermissioningController;
 import tech.pegasys.pantheon.ethereum.permissioning.NodePermissioningControllerFactory;
 import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
+import tech.pegasys.pantheon.ethereum.permissioning.account.AccountPermissioningController;
 import tech.pegasys.pantheon.ethereum.permissioning.node.NodePermissioningController;
 import tech.pegasys.pantheon.ethereum.transaction.TransactionSimulator;
 import tech.pegasys.pantheon.ethereum.worldstate.WorldStateArchive;
@@ -113,6 +113,7 @@ public class RunnerBuilder {
   private MetricsSystem metricsSystem;
   private Optional<PermissioningConfiguration> permissioningConfiguration = Optional.empty();
   private Collection<EnodeURL> staticNodes = Collections.emptyList();
+  private AccountPermissioningController accountPermissioningController;
 
   public RunnerBuilder vertx(final Vertx vertx) {
     this.vertx = vertx;
@@ -205,6 +206,12 @@ public class RunnerBuilder {
     return this;
   }
 
+  public RunnerBuilder accountPermissioningController(
+      final AccountPermissioningController accountPermissioningController) {
+    this.accountPermissioningController = accountPermissioningController;
+    return this;
+  }
+
   public Runner build() {
 
     Preconditions.checkNotNull(pantheonController);
@@ -241,21 +248,22 @@ public class RunnerBuilder {
             .flatMap(protocolManager -> protocolManager.getSupportedCapabilities().stream())
             .collect(Collectors.toSet());
 
+    final RlpxConfiguration rlpxConfiguration =
+        RlpxConfiguration.create()
+            .setBindPort(p2pListenPort)
+            .setMaxPeers(maxPeers)
+            .setSupportedProtocols(subProtocols)
+            .setClientId(PantheonInfo.version());
     final NetworkingConfiguration networkConfig =
         new NetworkingConfiguration()
-            .setRlpx(RlpxConfiguration.create().setBindPort(p2pListenPort).setMaxPeers(maxPeers))
-            .setDiscovery(discoveryConfiguration)
-            .setClientId(PantheonInfo.version())
-            .setNatMethod(natMethod)
-            .setSupportedProtocols(subProtocols);
+          .setNatMethod(natMethod)
+          .setRlpx(rlpxConfiguration)
+            .setDiscovery(discoveryConfiguration);
 
     final PeerPermissionsBlacklist bannedNodes = PeerPermissionsBlacklist.create();
     bannedNodeIds.forEach(bannedNodes::add);
 
     final List<EnodeURL> bootnodes = discoveryConfiguration.getBootnodes();
-
-    final Optional<LocalPermissioningConfiguration> localPermissioningConfiguration =
-        permissioningConfiguration.flatMap(PermissioningConfiguration::getLocalConfig);
 
     final Synchronizer synchronizer = pantheonController.getSynchronizer();
 
@@ -301,16 +309,6 @@ public class RunnerBuilder {
 
     final TransactionPool transactionPool = pantheonController.getTransactionPool();
     final MiningCoordinator miningCoordinator = pantheonController.getMiningCoordinator();
-    final Optional<AccountLocalConfigPermissioningController> accountWhitelistController =
-        localPermissioningConfiguration
-            .filter(LocalPermissioningConfiguration::isAccountWhitelistEnabled)
-            .map(
-                configuration -> {
-                  final AccountLocalConfigPermissioningController whitelistController =
-                      new AccountLocalConfigPermissioningController(configuration);
-                  transactionPool.setAccountFilter(whitelistController::contains);
-                  return whitelistController;
-                });
 
     final PrivacyParameters privacyParameters = pantheonController.getPrivacyParameters();
     final FilterManager filterManager = createFilterManager(vertx, context, transactionPool);
@@ -323,6 +321,12 @@ public class RunnerBuilder {
 
     final Optional<NodeLocalConfigPermissioningController> nodeLocalConfigPermissioningController =
         nodePermissioningController.flatMap(NodePermissioningController::localConfigController);
+
+    final Optional<AccountLocalConfigPermissioningController>
+        accountLocalConfigPermissioningController =
+            accountPermissioningController != null
+                ? accountPermissioningController.getAccountLocalConfigPermissioningController()
+                : Optional.empty();
 
     Optional<JsonRpcHttpService> jsonRpcHttpService = Optional.empty();
     if (jsonRpcConfiguration.isEnabled()) {
@@ -339,7 +343,7 @@ public class RunnerBuilder {
               supportedCapabilities,
               jsonRpcConfiguration.getRpcApis(),
               filterManager,
-              accountWhitelistController,
+              accountLocalConfigPermissioningController,
               nodeLocalConfigPermissioningController,
               privacyParameters,
               jsonRpcConfiguration,
@@ -390,7 +394,7 @@ public class RunnerBuilder {
               supportedCapabilities,
               webSocketConfiguration.getRpcApis(),
               filterManager,
-              accountWhitelistController,
+              accountLocalConfigPermissioningController,
               nodeLocalConfigPermissioningController,
               privacyParameters,
               jsonRpcConfiguration,
@@ -525,7 +529,7 @@ public class RunnerBuilder {
 
   private SubscriptionManager createSubscriptionManager(
       final Vertx vertx, final TransactionPool transactionPool) {
-    final SubscriptionManager subscriptionManager = new SubscriptionManager();
+    final SubscriptionManager subscriptionManager = new SubscriptionManager(metricsSystem);
     final PendingTransactionSubscriptionService pendingTransactions =
         new PendingTransactionSubscriptionService(subscriptionManager);
     final PendingTransactionDroppedSubscriptionService pendingTransactionsRemoved =
