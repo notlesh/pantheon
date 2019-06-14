@@ -19,6 +19,7 @@ import static tech.pegasys.pantheon.util.NetworkUtility.urlForSocketAddress;
 
 import tech.pegasys.pantheon.ethereum.jsonrpc.authentication.AuthenticationService;
 import tech.pegasys.pantheon.ethereum.jsonrpc.authentication.AuthenticationUtils;
+import tech.pegasys.pantheon.ethereum.jsonrpc.health.HealthService;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequest;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.JsonRpcRequestId;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.exception.InvalidJsonRpcParameters;
@@ -89,6 +90,8 @@ public class JsonRpcHttpService {
   @VisibleForTesting public final Optional<AuthenticationService> authenticationService;
 
   private HttpServer httpServer;
+  private final HealthService livenessService;
+  private final HealthService readinessService;
 
   /**
    * Construct a JsonRpcHttpService handler
@@ -114,7 +117,30 @@ public class JsonRpcHttpService {
         metricsSystem,
         natManager,
         methods,
-        AuthenticationService.create(vertx, config));
+        AuthenticationService.create(vertx, config),
+        new HealthService(() -> true),
+        new HealthService(() -> true));
+  }
+
+  public JsonRpcHttpService(
+      final Vertx vertx,
+      final Path dataDir,
+      final JsonRpcConfiguration config,
+      final MetricsSystem metricsSystem,
+      final Optional<UpnpNatManager> natManager,
+      final Map<String, JsonRpcMethod> methods,
+      final HealthService livenessService,
+      final HealthService readinessService) {
+    this(
+        vertx,
+        dataDir,
+        config,
+        metricsSystem,
+        natManager,
+        methods,
+        AuthenticationService.create(vertx, config),
+        livenessService,
+        readinessService);
   }
 
   private JsonRpcHttpService(
@@ -124,7 +150,9 @@ public class JsonRpcHttpService {
       final MetricsSystem metricsSystem,
       final Optional<UpnpNatManager> natManager,
       final Map<String, JsonRpcMethod> methods,
-      final Optional<AuthenticationService> authenticationService) {
+      final Optional<AuthenticationService> authenticationService,
+      final HealthService livenessService,
+      final HealthService readinessService) {
     this.dataDir = dataDir;
     requestTimer =
         metricsSystem.createLabelledTimer(
@@ -138,6 +166,8 @@ public class JsonRpcHttpService {
     this.natManager = natManager;
     this.rpcMethods = new RpcMethods(methods);
     this.authenticationService = authenticationService;
+    this.livenessService = livenessService;
+    this.readinessService = readinessService;
   }
 
   private void validateConfig(final JsonRpcConfiguration config) {
@@ -179,6 +209,14 @@ public class JsonRpcHttpService {
                 .setUploadsDirectory(dataDir.resolve("uploads").toString())
                 .setDeleteUploadedFilesOnEnd(true));
     router.route("/").method(HttpMethod.GET).handler(this::handleEmptyRequest);
+    router
+        .route(HealthService.LIVENESS_PATH)
+        .method(HttpMethod.GET)
+        .handler(livenessService::handleRequest);
+    router
+        .route(HealthService.READINESS_PATH)
+        .method(HttpMethod.GET)
+        .handler(readinessService::handleRequest);
     router
         .route("/")
         .method(HttpMethod.POST)

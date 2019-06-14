@@ -12,8 +12,9 @@
  */
 package tech.pegasys.pantheon.ethereum.p2p.config;
 
-import java.util.Objects;
 import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
+
+import java.util.Objects;
 
 public class NetworkingConfiguration {
   private DiscoveryConfiguration discovery = new DiscoveryConfiguration();
