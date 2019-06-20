@@ -32,10 +32,10 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcResponseT
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.response.JsonRpcUnauthorizedResponse;
 import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.metrics.LabelledMetric;
-import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.metrics.OperationTimer;
 import tech.pegasys.pantheon.metrics.OperationTimer.TimingContext;
+import tech.pegasys.pantheon.metrics.PantheonMetricCategory;
 import tech.pegasys.pantheon.util.NetworkUtility;
 
 import java.net.InetSocketAddress;
@@ -102,26 +102,9 @@ public class JsonRpcHttpService {
    * @param metricsSystem The metrics service that activities should be reported to
    * @param natManager The NAT environment manager.
    * @param methods The json rpc methods that should be enabled
+   * @param livenessService A service responsible for reporting whether this node is live
+   * @param readinessService A service responsible for reporting whether this node has fully started
    */
-  public JsonRpcHttpService(
-      final Vertx vertx,
-      final Path dataDir,
-      final JsonRpcConfiguration config,
-      final MetricsSystem metricsSystem,
-      final Optional<UpnpNatManager> natManager,
-      final Map<String, JsonRpcMethod> methods) {
-    this(
-        vertx,
-        dataDir,
-        config,
-        metricsSystem,
-        natManager,
-        methods,
-        AuthenticationService.create(vertx, config),
-        new HealthService(() -> true),
-        new HealthService(() -> true));
-  }
-
   public JsonRpcHttpService(
       final Vertx vertx,
       final Path dataDir,
@@ -156,7 +139,7 @@ public class JsonRpcHttpService {
     this.dataDir = dataDir;
     requestTimer =
         metricsSystem.createLabelledTimer(
-            MetricCategory.RPC,
+            PantheonMetricCategory.RPC,
             "request_time",
             "Time taken to process a JSON-RPC request",
             "methodName");

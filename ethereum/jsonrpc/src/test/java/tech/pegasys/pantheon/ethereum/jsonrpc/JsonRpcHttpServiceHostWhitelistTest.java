@@ -22,6 +22,7 @@ import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Synchronizer;
 import tech.pegasys.pantheon.ethereum.eth.EthProtocol;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
+import tech.pegasys.pantheon.ethereum.jsonrpc.health.HealthService;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.filter.FilterManager;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.JsonRpcMethod;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.queries.BlockchainQueries;
@@ -125,7 +126,9 @@ public class JsonRpcHttpServiceHostWhitelistTest {
         jsonRpcConfig,
         new NoOpMetricsSystem(),
         Optional.empty(),
-        rpcMethods);
+        rpcMethods,
+        HealthService.ALWAYS_HEALTHY,
+        HealthService.ALWAYS_HEALTHY);
   }
 
   private static JsonRpcConfiguration createJsonRpcConfig() {
