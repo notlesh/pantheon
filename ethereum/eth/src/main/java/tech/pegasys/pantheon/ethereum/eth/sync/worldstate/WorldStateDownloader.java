@@ -16,15 +16,15 @@ import tech.pegasys.pantheon.ethereum.core.BlockHeader;
 import tech.pegasys.pantheon.ethereum.core.Hash;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthContext;
 import tech.pegasys.pantheon.ethereum.worldstate.WorldStateStorage;
-import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
+import tech.pegasys.pantheon.metrics.PantheonMetricCategory;
 import tech.pegasys.pantheon.services.tasks.CachingTaskCollection;
 
 import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.IntSupplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -66,19 +66,19 @@ public class WorldStateDownloader {
     this.metricsSystem = metricsSystem;
 
     metricsSystem.createIntegerGauge(
-        MetricCategory.SYNCHRONIZER,
+        PantheonMetricCategory.SYNCHRONIZER,
         "world_state_node_requests_since_last_progress_current",
         "Number of world state requests made since the last time new data was returned",
         downloadStateValue(WorldDownloadState::getRequestsSinceLastProgress));
 
     metricsSystem.createIntegerGauge(
-        MetricCategory.SYNCHRONIZER,
+        PantheonMetricCategory.SYNCHRONIZER,
         "world_state_inflight_requests_current",
         "Number of in progress requests for world state data",
         downloadStateValue(WorldDownloadState::getOutstandingTaskCount));
   }
 
-  private Supplier<Integer> downloadStateValue(final Function<WorldDownloadState, Integer> getter) {
+  private IntSupplier downloadStateValue(final Function<WorldDownloadState, Integer> getter) {
     return () -> {
       final WorldDownloadState state = this.downloadState.get();
       return state != null ? getter.apply(state) : 0;

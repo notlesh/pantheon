@@ -14,6 +14,7 @@ package tech.pegasys.pantheon.ethereum.jsonrpc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import tech.pegasys.pantheon.ethereum.jsonrpc.health.HealthService;
 import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
 
 import java.util.HashMap;
@@ -194,7 +195,9 @@ public class JsonRpcHttpServiceCorsTest {
             config,
             new NoOpMetricsSystem(),
             Optional.empty(),
-            new HashMap<>());
+            new HashMap<>(),
+            HealthService.ALWAYS_HEALTHY,
+            HealthService.ALWAYS_HEALTHY);
     jsonRpcHttpService.start().join();
 
     return jsonRpcHttpService;

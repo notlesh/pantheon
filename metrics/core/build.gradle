@@ -26,8 +26,6 @@ jar {
 }
 
 dependencies {
-  implementation project(':util')
-
   implementation 'com.google.guava:guava'
   implementation 'io.prometheus:simpleclient'
   implementation 'io.prometheus:simpleclient_common'
@@ -40,8 +38,14 @@ dependencies {
   runtime 'org.apache.logging.log4j:log4j-core'
 
   // test dependencies.
+  testImplementation project(':util')
   testImplementation 'junit:junit'
   testImplementation 'org.assertj:assertj-core'
   testImplementation 'org.mockito:mockito-core'
   testImplementation 'com.squareup.okhttp3:okhttp'
+
+  testSupportImplementation 'org.mockito:mockito-core'
 }
+
+
+artifacts { testSupportArtifacts testSupportJar }

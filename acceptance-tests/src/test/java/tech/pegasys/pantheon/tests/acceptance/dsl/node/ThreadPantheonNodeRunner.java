@@ -24,6 +24,8 @@ import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
 import tech.pegasys.pantheon.ethereum.graphql.GraphQLConfiguration;
+import tech.pegasys.pantheon.ethereum.p2p.peers.EnodeURL;
+import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.metrics.noop.NoOpMetricsSystem;
 import tech.pegasys.pantheon.plugin.services.PantheonEvents;
@@ -32,7 +34,6 @@ import tech.pegasys.pantheon.services.PantheonEventsImpl;
 import tech.pegasys.pantheon.services.PantheonPluginContextImpl;
 import tech.pegasys.pantheon.services.PicoCLIOptionsImpl;
 import tech.pegasys.pantheon.services.kvstore.RocksDbConfiguration;
-import tech.pegasys.pantheon.util.enode.EnodeURL;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,6 +63,19 @@ public class ThreadPantheonNodeRunner implements PantheonNodeRunner {
 
   private final Map<Node, PantheonPluginContextImpl> pantheonPluginContextMap = new HashMap<>();
 
+  private PantheonPluginContextImpl buildPluginContext(final PantheonNode node) {
+    PantheonPluginContextImpl pantheonPluginContext = new PantheonPluginContextImpl();
+    final Path pluginsPath = node.homeDirectory().resolve("plugins");
+    final File pluginsDirFile = pluginsPath.toFile();
+    if (!pluginsDirFile.isDirectory()) {
+      pluginsDirFile.mkdirs();
+      pluginsDirFile.deleteOnExit();
+    }
+    System.setProperty("pantheon.plugins.dir", pluginsPath.toString());
+    pantheonPluginContext.registerPlugins(pluginsPath);
+    return pantheonPluginContext;
+  }
+
   @Override
   @SuppressWarnings("UnstableApiUsage")
   public void startNode(final PantheonNode node) {
@@ -71,16 +85,9 @@ public class ThreadPantheonNodeRunner implements PantheonNodeRunner {
 
     final CommandLine commandLine = new CommandLine(CommandSpec.create());
     final PantheonPluginContextImpl pantheonPluginContext =
-        pantheonPluginContextMap.computeIfAbsent(node, n -> new PantheonPluginContextImpl());
+        pantheonPluginContextMap.computeIfAbsent(node, n -> buildPluginContext(node));
     pantheonPluginContext.addService(PicoCLIOptions.class, new PicoCLIOptionsImpl(commandLine));
-    final Path pluginsPath = node.homeDirectory().resolve("plugins");
-    final File pluginsDirFile = pluginsPath.toFile();
-    if (!pluginsDirFile.isDirectory()) {
-      pluginsDirFile.mkdirs();
-      pluginsDirFile.deleteOnExit();
-    }
-    System.setProperty("pantheon.plugins.dir", pluginsPath.toString());
-    pantheonPluginContext.registerPlugins(pluginsPath);
+
     commandLine.parseArgs(node.getConfiguration().getExtraCLIOptions().toArray(new String[0]));
 
     final MetricsSystem noOpMetricsSystem = new NoOpMetricsSystem();
@@ -118,7 +125,12 @@ public class ThreadPantheonNodeRunner implements PantheonNodeRunner {
     }
 
     final RunnerBuilder runnerBuilder = new RunnerBuilder();
-    node.getPermissioningConfiguration().ifPresent(runnerBuilder::permissioningConfiguration);
+    if (node.getPermissioningConfiguration().isPresent()) {
+      PermissioningConfiguration permissioningConfiguration =
+          node.getPermissioningConfiguration().get();
+
+      runnerBuilder.permissioningConfiguration(permissioningConfiguration);
+    }
 
     pantheonPluginContext.addService(
         PantheonEvents.class,
@@ -150,13 +162,20 @@ public class ThreadPantheonNodeRunner implements PantheonNodeRunner {
 
   @Override
   public void stopNode(final PantheonNode node) {
-    pantheonPluginContextMap.get(node).stopPlugins();
+    PantheonPluginContextImpl pluginContext = pantheonPluginContextMap.remove(node);
+    if (pluginContext != null) {
+      pluginContext.stopPlugins();
+    }
     node.stop();
     killRunner(node.getName());
   }
 
   @Override
   public void shutdown() {
+    // stop all plugins from pluginContext
+    pantheonPluginContextMap.values().forEach(PantheonPluginContextImpl::stopPlugins);
+    pantheonPluginContextMap.clear();
+
     // iterate over a copy of the set so that pantheonRunner can be updated when a runner is killed
     new HashSet<>(pantheonRunners.keySet()).forEach(this::killRunner);
     try {

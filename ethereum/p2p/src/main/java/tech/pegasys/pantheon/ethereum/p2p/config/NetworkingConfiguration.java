@@ -13,36 +13,16 @@
 package tech.pegasys.pantheon.ethereum.p2p.config;
 
 import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
-import tech.pegasys.pantheon.ethereum.p2p.wire.SubProtocol;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 
 public class NetworkingConfiguration {
-  private List<SubProtocol> supportedProtocols = Collections.emptyList();
   private DiscoveryConfiguration discovery = new DiscoveryConfiguration();
   private RlpxConfiguration rlpx = new RlpxConfiguration();
-  private String clientId = "";
   private NatMethod natMethod = NatMethod.NONE;
 
   public static NetworkingConfiguration create() {
     return new NetworkingConfiguration();
-  }
-
-  public List<SubProtocol> getSupportedProtocols() {
-    return supportedProtocols;
-  }
-
-  public NetworkingConfiguration setSupportedProtocols(final List<SubProtocol> supportedProtocols) {
-    this.supportedProtocols = supportedProtocols;
-    return this;
-  }
-
-  public NetworkingConfiguration setSupportedProtocols(final SubProtocol... supportedProtocols) {
-    this.supportedProtocols = Arrays.asList(supportedProtocols);
-    return this;
   }
 
   public DiscoveryConfiguration getDiscovery() {
@@ -60,15 +40,6 @@ public class NetworkingConfiguration {
 
   public NetworkingConfiguration setRlpx(final RlpxConfiguration rlpx) {
     this.rlpx = rlpx;
-    return this;
-  }
-
-  public String getClientId() {
-    return clientId;
-  }
-
-  public NetworkingConfiguration setClientId(final String clientId) {
-    this.clientId = clientId;
     return this;
   }
 

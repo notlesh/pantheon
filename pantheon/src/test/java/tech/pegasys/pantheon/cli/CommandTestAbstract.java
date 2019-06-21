@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import tech.pegasys.pantheon.Runner;
@@ -25,6 +26,7 @@ import tech.pegasys.pantheon.cli.PublicKeySubCommand.KeyLoader;
 import tech.pegasys.pantheon.controller.PantheonController;
 import tech.pegasys.pantheon.controller.PantheonControllerBuilder;
 import tech.pegasys.pantheon.crypto.SECP256K1.KeyPair;
+import tech.pegasys.pantheon.ethereum.ProtocolContext;
 import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.sync.BlockBroadcaster;
@@ -32,6 +34,7 @@ import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.graphql.GraphQLConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.websocket.WebSocketConfiguration;
+import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsConfiguration;
 import tech.pegasys.pantheon.services.PantheonPluginContextImpl;
@@ -80,6 +83,8 @@ public abstract class CommandTestAbstract {
 
   @Mock PantheonControllerBuilder<Void> mockControllerBuilder;
   @Mock EthProtocolManager mockEthProtocolManager;
+  @Mock ProtocolSchedule<Object> mockProtocolSchedule;
+  @Mock ProtocolContext<Object> mockProtocolContext;
   @Mock BlockBroadcaster mockBlockBroadcaster;
   @Mock SynchronizerConfiguration.Builder mockSyncConfBuilder;
   @Mock EthereumWireProtocolConfiguration.Builder mockEthereumWireProtocolConfigurationBuilder;
@@ -102,7 +107,6 @@ public abstract class CommandTestAbstract {
   @Captor ArgumentCaptor<GraphQLConfiguration> graphQLConfigArgumentCaptor;
   @Captor ArgumentCaptor<WebSocketConfiguration> wsRpcConfigArgumentCaptor;
   @Captor ArgumentCaptor<MetricsConfiguration> metricsConfigArgumentCaptor;
-
   @Captor ArgumentCaptor<PermissioningConfiguration> permissioningConfigurationArgumentCaptor;
 
   @Rule public final TemporaryFolder temp = new TemporaryFolder();
@@ -134,7 +138,9 @@ public abstract class CommandTestAbstract {
 
     // doReturn used because of generic PantheonController
     doReturn(mockController).when(mockControllerBuilder).build();
-    when(mockController.getProtocolManager()).thenReturn(mockEthProtocolManager);
+    lenient().when(mockController.getProtocolManager()).thenReturn(mockEthProtocolManager);
+    lenient().when(mockController.getProtocolSchedule()).thenReturn(mockProtocolSchedule);
+    lenient().when(mockController.getProtocolContext()).thenReturn(mockProtocolContext);
 
     when(mockEthProtocolManager.getBlockBroadcaster()).thenReturn(mockBlockBroadcaster);
 

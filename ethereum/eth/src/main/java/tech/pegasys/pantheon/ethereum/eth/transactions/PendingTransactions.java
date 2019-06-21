@@ -20,8 +20,8 @@ import tech.pegasys.pantheon.ethereum.core.Hash;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
 import tech.pegasys.pantheon.metrics.Counter;
 import tech.pegasys.pantheon.metrics.LabelledMetric;
-import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
+import tech.pegasys.pantheon.metrics.PantheonMetricCategory;
 import tech.pegasys.pantheon.util.Subscribers;
 
 import java.time.Clock;
@@ -66,10 +66,10 @@ public class PendingTransactions {
   private final Map<Address, SortedMap<Long, TransactionInfo>> transactionsBySender =
       new HashMap<>();
 
-  private final Subscribers<PendingTransactionListener> listeners = new Subscribers<>();
+  private final Subscribers<PendingTransactionListener> listeners = Subscribers.create();
 
   private final Subscribers<PendingTransactionDroppedListener> transactionDroppedListeners =
-      new Subscribers<>();
+      Subscribers.create();
 
   private final LabelledMetric<Counter> transactionRemovedCounter;
   private final Counter localTransactionAddedCounter;
@@ -87,7 +87,7 @@ public class PendingTransactions {
     this.clock = clock;
     final LabelledMetric<Counter> transactionAddedCounter =
         metricsSystem.createLabelledCounter(
-            MetricCategory.TRANSACTION_POOL,
+            PantheonMetricCategory.TRANSACTION_POOL,
             "transactions_added_total",
             "Count of transactions added to the transaction pool",
             "source");
@@ -96,7 +96,7 @@ public class PendingTransactions {
 
     transactionRemovedCounter =
         metricsSystem.createLabelledCounter(
-            MetricCategory.TRANSACTION_POOL,
+            PantheonMetricCategory.TRANSACTION_POOL,
             "transactions_removed_total",
             "Count of transactions removed from the transaction pool",
             "source",
@@ -122,16 +122,20 @@ public class PendingTransactions {
   public boolean addRemoteTransaction(final Transaction transaction) {
     final TransactionInfo transactionInfo =
         new TransactionInfo(transaction, false, clock.instant());
-    final boolean addTransaction = addTransaction(transactionInfo);
-    remoteTransactionAddedCounter.inc();
-    return addTransaction;
+    final boolean transactionAdded = addTransaction(transactionInfo);
+    if (transactionAdded) {
+      remoteTransactionAddedCounter.inc();
+    }
+    return transactionAdded;
   }
 
   boolean addLocalTransaction(final Transaction transaction) {
-    final boolean addTransaction =
+    final boolean transactionAdded =
         addTransaction(new TransactionInfo(transaction, true, clock.instant()));
-    localTransactionAddedCounter.inc();
-    return addTransaction;
+    if (transactionAdded) {
+      localTransactionAddedCounter.inc();
+    }
+    return transactionAdded;
   }
 
   void removeTransaction(final Transaction transaction) {
@@ -273,6 +277,10 @@ public class PendingTransactions {
 
   public int size() {
     return pendingTransactions.size();
+  }
+
+  public boolean containsTransaction(final Hash transactionHash) {
+    return pendingTransactions.containsKey(transactionHash);
   }
 
   public Optional<Transaction> getTransactionByHash(final Hash transactionHash) {

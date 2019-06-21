@@ -22,6 +22,7 @@ import static tech.pegasys.pantheon.ethereum.core.InMemoryStorageProvider.create
 import static tech.pegasys.pantheon.ethereum.core.InMemoryStorageProvider.createInMemoryWorldStateArchive;
 
 import tech.pegasys.pantheon.config.GenesisConfigFile;
+import tech.pegasys.pantheon.crypto.SECP256K1.Signature;
 import tech.pegasys.pantheon.ethereum.chain.GenesisState;
 import tech.pegasys.pantheon.ethereum.chain.MutableBlockchain;
 import tech.pegasys.pantheon.ethereum.core.Address;
@@ -32,11 +33,12 @@ import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.transaction.TransactionSimulator;
 import tech.pegasys.pantheon.ethereum.worldstate.WorldStateArchive;
 import tech.pegasys.pantheon.metrics.Counter;
-import tech.pegasys.pantheon.metrics.MetricCategory;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
+import tech.pegasys.pantheon.metrics.PantheonMetricCategory;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 import java.io.IOException;
+import java.math.BigInteger;
 
 import com.google.common.io.Resources;
 import org.junit.Test;
@@ -70,19 +72,19 @@ public class TransactionSmartContractPermissioningControllerTest {
     final Address contractAddress = Address.fromHexString(contractAddressString);
 
     when(metricsSystem.createCounter(
-            MetricCategory.PERMISSIONING,
+            PantheonMetricCategory.PERMISSIONING,
             "transaction_smart_contract_check_count",
             "Number of times the transaction smart contract permissioning provider has been checked"))
         .thenReturn(checkCounter);
 
     when(metricsSystem.createCounter(
-            MetricCategory.PERMISSIONING,
+            PantheonMetricCategory.PERMISSIONING,
             "transaction_smart_contract_check_count_permitted",
             "Number of times the transaction smart contract permissioning provider has been checked and returned permitted"))
         .thenReturn(checkPermittedCounter);
 
     when(metricsSystem.createCounter(
-            MetricCategory.PERMISSIONING,
+            PantheonMetricCategory.PERMISSIONING,
             "transaction_smart_contract_check_count_unpermitted",
             "Number of times the transaction smart contract permissioning provider has been checked and returned unpermitted"))
         .thenReturn(checkUnpermittedCounter);
@@ -96,7 +98,9 @@ public class TransactionSmartContractPermissioningControllerTest {
         .value(Wei.ZERO)
         .gasPrice(Wei.ZERO)
         .gasLimit(0)
-        .payload(BytesValue.EMPTY)
+        .payload(BytesValue.fromHexString("0x1234"))
+        .nonce(1)
+        .signature(Signature.create(BigInteger.ONE, BigInteger.TEN, (byte) 1))
         .build();
   }
 
@@ -163,12 +167,10 @@ public class TransactionSmartContractPermissioningControllerTest {
 
     verifyCountersUntouched();
 
-    assertThatThrownBy(
-            () -> controller.isPermitted(transactionForAccount(Address.fromHexString("0x1"))))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Transaction permissioning contract does not exist");
+    assertThat(controller.isPermitted(transactionForAccount(Address.fromHexString("0x1"))))
+        .isTrue();
 
-    verifyCountersFailedCheck();
+    verifyCountersPermitted();
   }
 
   @Test
