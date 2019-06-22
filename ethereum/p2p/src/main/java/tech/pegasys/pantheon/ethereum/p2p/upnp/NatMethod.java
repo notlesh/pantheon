@@ -13,10 +13,7 @@
 package tech.pegasys.pantheon.ethereum.p2p.upnp;
 
 public enum NatMethod {
-  // UPnP
   UPNP,
-
-  // None
   NONE;
 
   public static NatMethod fromString(final String str) {
