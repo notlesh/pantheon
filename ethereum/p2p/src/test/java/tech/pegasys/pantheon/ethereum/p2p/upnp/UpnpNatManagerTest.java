@@ -90,7 +90,7 @@ public final class UpnpNatManagerTest {
   }
 
   @Test
-  public void stopThrowsWhenAlreadyStopped() throws Exception {
+  public void startThrowsWhenAlreadyStarted() throws Exception {
     upnpManager.start();
 
     assertThatThrownBy(
