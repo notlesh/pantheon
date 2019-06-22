@@ -80,7 +80,7 @@ public final class UpnpNatManagerTest {
   }
 
   @Test
-  public void startThrowsWhenAlreadyStarted() throws Exception {
+  public void stopThrowsWhenCalledBeforeStart() throws Exception {
 
     assertThatThrownBy(
             () -> {
