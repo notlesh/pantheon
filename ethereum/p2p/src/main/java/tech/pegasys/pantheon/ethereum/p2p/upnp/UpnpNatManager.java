@@ -76,7 +76,7 @@ public class UpnpNatManager {
    *
    * @param service is the desired instance of UpnpService.
    */
-  public UpnpNatManager(final UpnpService service) {
+  UpnpNatManager(final UpnpService service) {
     upnpService = service;
 
     // prime our recognizedServices map so we can use its key-set later
