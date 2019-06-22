@@ -23,7 +23,6 @@ import org.jupnp.UpnpService;
 import org.jupnp.UpnpServiceImpl;
 import org.jupnp.model.action.ActionInvocation;
 import org.jupnp.model.message.UpnpResponse;
-import org.jupnp.model.message.header.STAllHeader;
 import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.model.meta.RemoteDeviceIdentity;
 import org.jupnp.model.meta.RemoteService;
@@ -107,9 +106,6 @@ public class UpnpNatManager {
     LOG.info("starting upnp service...");
     upnpService.startup();
     upnpService.getRegistry().addListener(registryListener);
-
-    // TODO: does jupnp do this automatically?
-    upnpService.getControlPoint().search(new STAllHeader());
 
     initiateExternalIpQuery();
 
