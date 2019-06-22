@@ -359,11 +359,17 @@ public class DefaultP2PNetwork implements P2PNetwork {
     CompletableFuture<String> natQueryFuture = this.natManager.get().queryExternalIPAddress();
     String externalAddress = null;
     try {
-      externalAddress = natQueryFuture.get();
+      final int timeoutSeconds = 60;
+      LOG.info(
+          "Querying NAT environment for external IP address, timeout "
+              + timeoutSeconds
+              + " seconds...");
+      externalAddress = natQueryFuture.get(timeoutSeconds, TimeUnit.SECONDS);
 
       // if we're in a NAT environment, request port forwards for every port we
       // intend to bind to
       if (externalAddress != null) {
+        LOG.info("External IP detected: " + externalAddress);
         this.natManager
             .get()
             .requestPortForward(
@@ -371,6 +377,8 @@ public class DefaultP2PNetwork implements P2PNetwork {
         this.natManager
             .get()
             .requestPortForward(this.config.getRlpx().getBindPort(), "TCP", "pantheon-rlpx");
+      } else {
+        LOG.info("No external IP detected within timeout.");
       }
 
     } catch (Exception e) {
