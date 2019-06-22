@@ -39,7 +39,6 @@ import tech.pegasys.pantheon.ethereum.p2p.rlpx.RlpxAgent;
 import tech.pegasys.pantheon.ethereum.p2p.rlpx.connections.PeerConnection;
 import tech.pegasys.pantheon.ethereum.p2p.rlpx.wire.Capability;
 import tech.pegasys.pantheon.ethereum.p2p.rlpx.wire.messages.DisconnectMessage.DisconnectReason;
-import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
 import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
@@ -175,7 +174,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
     subscribeDisconnect(reputationManager);
 
     natExternalAddress = Optional.empty();
-    if (config.getNatMethod() != NatMethod.NONE) {
+    if (natManager.isPresent()) {
       this.configureNatEnvironment();
     }
   }

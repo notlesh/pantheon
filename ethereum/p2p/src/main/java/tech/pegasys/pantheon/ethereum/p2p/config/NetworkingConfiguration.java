@@ -12,14 +12,11 @@
  */
 package tech.pegasys.pantheon.ethereum.p2p.config;
 
-import tech.pegasys.pantheon.ethereum.p2p.upnp.NatMethod;
-
 import java.util.Objects;
 
 public class NetworkingConfiguration {
   private DiscoveryConfiguration discovery = new DiscoveryConfiguration();
   private RlpxConfiguration rlpx = new RlpxConfiguration();
-  private NatMethod natMethod = NatMethod.NONE;
 
   public static NetworkingConfiguration create() {
     return new NetworkingConfiguration();
@@ -40,15 +37,6 @@ public class NetworkingConfiguration {
 
   public NetworkingConfiguration setRlpx(final RlpxConfiguration rlpx) {
     this.rlpx = rlpx;
-    return this;
-  }
-
-  public NatMethod getNatMethod() {
-    return natMethod;
-  }
-
-  public NetworkingConfiguration setNatMethod(final NatMethod natMethod) {
-    this.natMethod = natMethod;
     return this;
   }
 

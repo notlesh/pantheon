@@ -258,7 +258,6 @@ public class RunnerBuilder {
             .setClientId(PantheonInfo.version());
     final NetworkingConfiguration networkConfig =
         new NetworkingConfiguration()
-            .setNatMethod(natMethod)
             .setRlpx(rlpxConfiguration)
             .setDiscovery(discoveryConfiguration);
 
