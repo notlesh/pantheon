@@ -1233,7 +1233,7 @@ public class PantheonCommandTest extends CommandTestAbstract {
   }
 
   @Test
-  public void natMethodOptionMustBeUsed() {
+  public void natMethodOptionIsParsedCorrectly() {
 
     parseCommand("--nat-method", "NONE");
     verify(mockRunnerBuilder).natMethod(eq(NatMethod.NONE));
