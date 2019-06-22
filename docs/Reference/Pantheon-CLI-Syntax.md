@@ -638,7 +638,7 @@ Specify the method for handling NAT environments. Options are: `UPNP` and `NONE`
 The default is `NONE`, which disables NAT functionality.
 
 !!!tip
-    `UPNP` works well with a typcial home or small office environment where a wireless router or modem provides NAT isolation. This should provide
+    `UPNP` works well with a typical home or small office environment where a wireless router or modem provides NAT isolation. This should provide
     automatic detection and port-forwarding. UPnP support is often disabled by default in networking equipment firmware, however, any may need to be
     explicitly enabled.
 
