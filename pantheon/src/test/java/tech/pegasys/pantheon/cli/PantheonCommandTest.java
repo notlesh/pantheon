@@ -1246,6 +1246,17 @@ public class PantheonCommandTest extends CommandTestAbstract {
   }
 
   @Test
+  public void parsesInvalidNatMethodOptionsShouldFail() {
+
+    parseCommand("--nat-method", "invalid");
+    verifyZeroInteractions(mockRunnerBuilder);
+    assertThat(commandOutput.toString()).isEmpty();
+    assertThat(commandErrorOutput.toString())
+        .contains(
+            "Invalid value for option '--nat-method': expected one of [UPNP, NONE] (case-insensitive) but was 'invalid'");
+  }
+
+  @Test
   public void helpShouldDisplayNatMethodInfo() {
     parseCommand("--help");
 
