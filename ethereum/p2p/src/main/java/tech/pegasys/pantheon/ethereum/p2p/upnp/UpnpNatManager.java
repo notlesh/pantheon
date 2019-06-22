@@ -46,7 +46,6 @@ import org.jupnp.support.model.PortMapping;
 public class UpnpNatManager {
   protected static final Logger LOG = LogManager.getLogger();
 
-  public static final String SERVICE_DEFAULT_NAMESPACE = "schemas-upnp-org";
   public static final String SERVICE_TYPE_WAN_IP_CONNECTION = "WANIPConnection";
 
   private boolean started = false;
