@@ -433,13 +433,11 @@ public class UpnpNatManager {
                         final UpnpResponse operation,
                         final String msg) {
                       LOG.warn(
-                          "Port forward request for "
-                              + portMapping.getProtocol()
-                              + " "
-                              + portMapping.getInternalPort()
-                              + " -> "
-                              + portMapping.getExternalPort()
-                              + " failed");
+                          "Port forward request for {} {} -> {} failed: {}",
+                          portMapping.getProtocol(),
+                          portMapping.getInternalPort(),
+                          portMapping.getExternalPort(),
+                          msg);
                       upnpQueryFuture.completeExceptionally(new Exception(msg));
                     }
                   };
