@@ -40,8 +40,6 @@ import org.jupnp.support.model.PortMapping;
 /**
  * Manages underlying UPnP library "jupnp" and provides abstractions for asynchronously interacting
  * with the NAT environment through UPnP.
- *
- * <p>This class is not thread-safe.
  */
 public class UpnpNatManager {
   protected static final Logger LOG = LogManager.getLogger();
