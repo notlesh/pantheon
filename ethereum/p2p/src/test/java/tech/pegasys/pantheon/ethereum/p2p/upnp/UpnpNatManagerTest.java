@@ -67,7 +67,6 @@ public final class UpnpNatManagerTest {
 
     verify(mockedService).startup();
     verify(mockedRegistry).addListener(notNull());
-    verify(mockedControlPoint).search(notNull());
   }
 
   @Test
