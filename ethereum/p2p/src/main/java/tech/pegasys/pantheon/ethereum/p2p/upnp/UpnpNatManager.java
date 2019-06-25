@@ -256,10 +256,9 @@ public class UpnpNatManager {
                         protected void success(final String result) {
 
                           LOG.info(
-                              "External IP address "
-                                  + result
-                                  + " detected for internal address "
-                                  + discoveredOnLocalAddress);
+                              "External IP address {} detected for internal address {}",
+                              result,
+                              discoveredOnLocalAddress);
 
                           upnpQueryFuture.complete(result);
                         }
@@ -426,13 +425,10 @@ public class UpnpNatManager {
                     @SuppressWarnings("rawtypes")
                     public void success(final ActionInvocation invocation) {
                       LOG.info(
-                          "Port forward request for "
-                              + portMapping.getProtocol()
-                              + " "
-                              + portMapping.getInternalPort()
-                              + " -> "
-                              + portMapping.getExternalPort()
-                              + " succeeded");
+                          "Port forward request for {} {} -> {} succeeded.",
+                          portMapping.getProtocol(),
+                          portMapping.getInternalPort(),
+                          portMapping.getExternalPort());
                       upnpQueryFuture.complete(null);
                     }
 
@@ -457,12 +453,10 @@ public class UpnpNatManager {
                   };
 
               LOG.info(
-                  "Requesting port forward "
-                      + portMapping.getProtocol()
-                      + " "
-                      + portMapping.getInternalPort()
-                      + " -> "
-                      + portMapping.getExternalPort());
+                  "Requesting port forward for {} {} -> {}",
+                  portMapping.getProtocol(),
+                  portMapping.getInternalPort(),
+                  portMapping.getExternalPort());
 
               upnpService.getControlPoint().execute(callback);
 
