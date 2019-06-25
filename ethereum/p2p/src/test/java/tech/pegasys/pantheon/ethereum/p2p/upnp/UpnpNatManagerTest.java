@@ -90,6 +90,46 @@ public final class UpnpNatManagerTest {
   }
 
   @Test
+  public void getWANIPConnectionServiceThrowsWhenCalledBeforeStart() throws Exception {
+
+    assertThatThrownBy(
+            () -> {
+              upnpManager.getWANIPConnectionService();
+            })
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  public void getDiscoveredOnLocalAddressThrowsWhenCalledBeforeStart() throws Exception {
+
+    assertThatThrownBy(
+            () -> {
+              upnpManager.getDiscoveredOnLocalAddress();
+            })
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  public void queryStatusInfoThrowsWhenCalledBeforeStart() throws Exception {
+
+    assertThatThrownBy(
+            () -> {
+              upnpManager.queryStatusInfo();
+            })
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  public void requestPortForwardThrowsWhenCalledBeforeStart() throws Exception {
+
+    assertThatThrownBy(
+            () -> {
+              upnpManager.requestPortForward(0, "TCP", "");
+            })
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   public void stopThrowsWhenAlreadyStopped() throws Exception {
     upnpManager.start();
 

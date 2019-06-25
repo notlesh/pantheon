@@ -143,6 +143,10 @@ public class UpnpNatManager {
    * @return the WANIPConnection Service if we have found it, or null.
    */
   public synchronized RemoteService getWANIPConnectionService() {
+    if (!started) {
+      throw new IllegalStateException(
+          "Cannot call getWANIPConnectionService() when in stopped state");
+    }
     return getService(SERVICE_TYPE_WAN_IP_CONNECTION);
   }
 
@@ -156,6 +160,10 @@ public class UpnpNatManager {
    *     GetExternalIP query has been performed successfully.
    */
   public String getDiscoveredOnLocalAddress() {
+    if (!started) {
+      throw new IllegalStateException(
+          "Cannot call getDiscoveredOnLocalAddress() when in stopped state");
+    }
     return this.discoveredOnLocalAddress;
   }
 
@@ -281,6 +289,9 @@ public class UpnpNatManager {
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   public CompletableFuture<Connection.StatusInfo> queryStatusInfo() {
+    if (!started) {
+      throw new IllegalStateException("Cannot call queryStatusInfo() when in stopped state");
+    }
 
     CompletableFuture<Connection.StatusInfo> upnpQueryFuture = new CompletableFuture<>();
 
@@ -388,6 +399,9 @@ public class UpnpNatManager {
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   private CompletableFuture<Void> requestPortForward(final PortMapping portMapping) {
+    if (!started) {
+      throw new IllegalStateException("Cannot call requestPortForward() when in stopped state");
+    }
 
     CompletableFuture<Void> upnpQueryFuture = new CompletableFuture<>();
 
