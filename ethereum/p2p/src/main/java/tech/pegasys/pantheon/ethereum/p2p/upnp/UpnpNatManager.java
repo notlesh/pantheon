@@ -103,7 +103,7 @@ public class UpnpNatManager {
       throw new IllegalStateException("Cannot start already-started service");
     }
 
-    LOG.info("starting upnp service...");
+    LOG.info("Starting UPnP Service");
     upnpService.startup();
     upnpService.getRegistry().addListener(registryListener);
 

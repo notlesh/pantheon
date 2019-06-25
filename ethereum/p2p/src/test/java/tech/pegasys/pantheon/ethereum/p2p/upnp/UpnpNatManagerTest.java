@@ -89,6 +89,17 @@ public final class UpnpNatManagerTest {
   }
 
   @Test
+  public void startThrowsWhenAlreadyStarted() throws Exception {
+    upnpManager.start();
+
+    assertThatThrownBy(
+            () -> {
+              upnpManager.start();
+            })
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   public void getWANIPConnectionServiceThrowsWhenCalledBeforeStart() throws Exception {
 
     assertThatThrownBy(
@@ -124,17 +135,6 @@ public final class UpnpNatManagerTest {
     assertThatThrownBy(
             () -> {
               upnpManager.requestPortForward(0, "TCP", "");
-            })
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
-  public void stopThrowsWhenAlreadyStopped() throws Exception {
-    upnpManager.start();
-
-    assertThatThrownBy(
-            () -> {
-              upnpManager.start();
             })
         .isInstanceOf(IllegalStateException.class);
   }
