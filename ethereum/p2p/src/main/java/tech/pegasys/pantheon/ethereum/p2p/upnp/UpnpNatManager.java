@@ -474,9 +474,14 @@ public class UpnpNatManager {
     for (RemoteService service : device.getServices()) {
       String serviceType = service.getServiceType().getType();
       if (serviceTypes.contains(serviceType)) {
-        // TODO: handle case where service is already "recognized" as this could lead to
-        // some odd bugs
         synchronized (this) {
+          // log a warning if we detect a second WANIPConnection service
+          RemoteService existingService = recognizedServices.get(serviceType);
+          if (null != existingService && service != existingService) {
+            LOG.warn(
+                "Detected multiple WANIPConnection services on network. This may interfere with NAT circumvention.");
+            continue;
+          }
           recognizedServices.put(serviceType, service);
         }
       }
