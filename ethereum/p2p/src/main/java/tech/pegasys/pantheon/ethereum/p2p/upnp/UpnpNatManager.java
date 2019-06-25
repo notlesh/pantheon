@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jupnp.UpnpService;
@@ -142,7 +143,8 @@ public class UpnpNatManager {
    *
    * @return the WANIPConnection Service if we have found it, or null.
    */
-  public synchronized RemoteService getWANIPConnectionService() {
+  @VisibleForTesting
+  synchronized RemoteService getWANIPConnectionService() {
     if (!started) {
       throw new IllegalStateException(
           "Cannot call getWANIPConnectionService() when in stopped state");

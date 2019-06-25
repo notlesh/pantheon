@@ -100,16 +100,6 @@ public final class UpnpNatManagerTest {
   }
 
   @Test
-  public void getWANIPConnectionServiceThrowsWhenCalledBeforeStart() throws Exception {
-
-    assertThatThrownBy(
-            () -> {
-              upnpManager.getWANIPConnectionService();
-            })
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
   public void getDiscoveredOnLocalAddressThrowsWhenCalledBeforeStart() throws Exception {
 
     assertThatThrownBy(
