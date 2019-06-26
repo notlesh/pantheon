@@ -404,64 +404,64 @@ public class UpnpNatManager {
 
     CompletableFuture<Void> upnpQueryFuture = new CompletableFuture<>();
 
-    return discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
-        .thenCompose(
-            service -> {
+    return externalIpQueryFuture.thenCompose(
+        address -> {
+          RemoteService service = getService(SERVICE_TYPE_WAN_IP_CONNECTION);
 
-              // at this point, we should have the local address we discovered the IGD on,
-              // so we can prime the NewInternalClient field if it was omitted
-              if (null == portMapping.getInternalClient()) {
-                portMapping.setInternalClient(discoveredOnLocalAddress);
-              }
+          // at this point, we should have the local address we discovered the IGD on,
+          // so we can prime the NewInternalClient field if it was omitted
+          if (null == portMapping.getInternalClient()) {
+            portMapping.setInternalClient(discoveredOnLocalAddress);
+          }
 
-              // our query, which will be handled asynchronously by the jupnp library
-              PortMappingAdd callback =
-                  new PortMappingAdd(service, portMapping) {
-                    /**
-                     * Because the underlying jupnp library omits generics info in this method
-                     * signature, we must too when we override it.
-                     */
-                    @Override
-                    @SuppressWarnings("rawtypes")
-                    public void success(final ActionInvocation invocation) {
-                      LOG.info(
-                          "Port forward request for {} {} -> {} succeeded.",
-                          portMapping.getProtocol(),
-                          portMapping.getInternalPort(),
-                          portMapping.getExternalPort());
-                      upnpQueryFuture.complete(null);
-                    }
+          // our query, which will be handled asynchronously by the jupnp library
+          PortMappingAdd callback =
+              new PortMappingAdd(service, portMapping) {
+                /**
+                 * Because the underlying jupnp library omits generics info in this method
+                 * signature, we must too when we override it.
+                 */
+                @Override
+                @SuppressWarnings("rawtypes")
+                public void success(final ActionInvocation invocation) {
+                  LOG.info(
+                      "Port forward request for {} {} -> {} succeeded.",
+                      portMapping.getProtocol(),
+                      portMapping.getInternalPort(),
+                      portMapping.getExternalPort());
+                  upnpQueryFuture.complete(null);
+                }
 
-                    /**
-                     * Because the underlying jupnp library omits generics info in this method
-                     * signature, we must too when we override it.
-                     */
-                    @Override
-                    @SuppressWarnings("rawtypes")
-                    public void failure(
-                        final ActionInvocation invocation,
-                        final UpnpResponse operation,
-                        final String msg) {
-                      LOG.warn(
-                          "Port forward request for {} {} -> {} failed: {}",
-                          portMapping.getProtocol(),
-                          portMapping.getInternalPort(),
-                          portMapping.getExternalPort(),
-                          msg);
-                      upnpQueryFuture.completeExceptionally(new Exception(msg));
-                    }
-                  };
+                /**
+                 * Because the underlying jupnp library omits generics info in this method
+                 * signature, we must too when we override it.
+                 */
+                @Override
+                @SuppressWarnings("rawtypes")
+                public void failure(
+                    final ActionInvocation invocation,
+                    final UpnpResponse operation,
+                    final String msg) {
+                  LOG.warn(
+                      "Port forward request for {} {} -> {} failed: {}",
+                      portMapping.getProtocol(),
+                      portMapping.getInternalPort(),
+                      portMapping.getExternalPort(),
+                      msg);
+                  upnpQueryFuture.completeExceptionally(new Exception(msg));
+                }
+              };
 
-              LOG.info(
-                  "Requesting port forward for {} {} -> {}",
-                  portMapping.getProtocol(),
-                  portMapping.getInternalPort(),
-                  portMapping.getExternalPort());
+          LOG.info(
+              "Requesting port forward for {} {} -> {}",
+              portMapping.getProtocol(),
+              portMapping.getInternalPort(),
+              portMapping.getExternalPort());
 
-              upnpService.getControlPoint().execute(callback);
+          upnpService.getControlPoint().execute(callback);
 
-              return upnpQueryFuture;
-            });
+          return upnpQueryFuture;
+        });
   }
 
   /**
