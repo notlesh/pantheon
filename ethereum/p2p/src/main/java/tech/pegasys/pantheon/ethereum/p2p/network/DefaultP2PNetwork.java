@@ -356,7 +356,6 @@ public class DefaultP2PNetwork implements P2PNetwork {
   }
 
   private void configureNatEnvironment() {
-    this.natManager.get().start();
     CompletableFuture<String> natQueryFuture = this.natManager.get().queryExternalIPAddress();
     String externalAddress = null;
     try {

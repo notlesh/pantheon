@@ -18,6 +18,7 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcHttpService;
 import tech.pegasys.pantheon.ethereum.jsonrpc.websocket.WebSocketService;
 import tech.pegasys.pantheon.ethereum.p2p.network.NetworkRunner;
 import tech.pegasys.pantheon.ethereum.p2p.peers.EnodeURL;
+import tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsService;
 
 import java.io.File;
@@ -42,6 +43,7 @@ public class Runner implements AutoCloseable {
   private final Vertx vertx;
 
   private final NetworkRunner networkRunner;
+  private final Optional<UpnpNatManager> natManager;
   private final Optional<JsonRpcHttpService> jsonRpc;
   private final Optional<GraphQLHttpService> graphQLHttp;
   private final Optional<WebSocketService> websocketRpc;
@@ -53,6 +55,7 @@ public class Runner implements AutoCloseable {
   Runner(
       final Vertx vertx,
       final NetworkRunner networkRunner,
+      final Optional<UpnpNatManager> natManager,
       final Optional<JsonRpcHttpService> jsonRpc,
       final Optional<GraphQLHttpService> graphQLHttp,
       final Optional<WebSocketService> websocketRpc,
@@ -61,6 +64,7 @@ public class Runner implements AutoCloseable {
       final Path dataDir) {
     this.vertx = vertx;
     this.networkRunner = networkRunner;
+    this.natManager = natManager;
     this.graphQLHttp = graphQLHttp;
     this.jsonRpc = jsonRpc;
     this.websocketRpc = websocketRpc;
@@ -72,6 +76,9 @@ public class Runner implements AutoCloseable {
   public void start() {
     try {
       LOG.info("Starting Ethereum main loop ... ");
+      if (natManager.isPresent()) {
+        natManager.get().start();
+      }
       networkRunner.start();
       if (networkRunner.getNetwork().isP2pEnabled()) {
         pantheonController.getSynchronizer().start();

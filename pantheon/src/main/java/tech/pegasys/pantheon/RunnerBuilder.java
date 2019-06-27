@@ -441,6 +441,7 @@ public class RunnerBuilder {
     return new Runner(
         vertx,
         networkRunner,
+        natManager,
         jsonRpcHttpService,
         graphQLHttpService,
         webSocketService,
