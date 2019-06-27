@@ -174,9 +174,6 @@ public class DefaultP2PNetwork implements P2PNetwork {
     subscribeDisconnect(reputationManager);
 
     natExternalAddress = Optional.empty();
-    if (natManager.isPresent()) {
-      this.configureNatEnvironment();
-    }
   }
 
   public static Builder builder() {
@@ -193,6 +190,10 @@ public class DefaultP2PNetwork implements P2PNetwork {
     final int listeningPort = rlpxAgent.start().join();
     final int discoveryPort = peerDiscoveryAgent.start(listeningPort).join();
     setLocalNode(listeningPort, discoveryPort);
+
+    if (natManager.isPresent()) {
+      this.configureNatEnvironment();
+    }
 
     peerBondedObserverId =
         OptionalLong.of(peerDiscoveryAgent.observePeerBondedEvents(this::handlePeerBondedEvent));
