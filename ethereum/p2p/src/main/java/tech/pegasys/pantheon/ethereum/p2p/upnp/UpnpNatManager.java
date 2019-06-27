@@ -90,7 +90,7 @@ public class UpnpNatManager {
 
     // registry listener to observe new devices and look for specific services
     registryListener =
-        new DefaultRegistryListener() {
+        new PantheonUpnpRegistryListener() {
           @Override
           public void remoteDeviceAdded(final Registry registry, final RemoteDevice device) {
             LOG.debug("UPnP Device discovered: " + device.getDetails().getFriendlyName());

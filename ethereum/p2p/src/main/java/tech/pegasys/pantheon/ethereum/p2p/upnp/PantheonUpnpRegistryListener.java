@@ -17,7 +17,7 @@ import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.registry.Registry;
 import org.jupnp.registry.RegistryListener;
 
-class DefaultRegistryListener implements RegistryListener {
+class PantheonUpnpRegistryListener implements RegistryListener {
 
   @Override
   public void remoteDeviceDiscoveryStarted(final Registry registry, final RemoteDevice device) {}
