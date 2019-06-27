@@ -12,10 +12,13 @@
  */
 package tech.pegasys.pantheon.ethereum.p2p.upnp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
@@ -34,6 +37,7 @@ import org.jupnp.registry.RegistryListener;
 import org.jupnp.support.igd.callback.GetExternalIP;
 import org.jupnp.support.igd.callback.GetStatusInfo;
 import org.jupnp.support.igd.callback.PortMappingAdd;
+import org.jupnp.support.igd.callback.PortMappingDelete;
 import org.jupnp.support.model.Connection;
 import org.jupnp.support.model.PortMapping;
 
@@ -54,6 +58,7 @@ public class UpnpNatManager {
   private CompletableFuture<String> externalIpQueryFuture = null;
 
   private Map<String, RemoteService> recognizedServices;
+  private final List<PortMapping> forwardedPorts;
   private String discoveredOnLocalAddress = null;
 
   /** Empty constructor. Creates in instance of UpnpServiceImpl. */
@@ -80,6 +85,8 @@ public class UpnpNatManager {
     // prime our recognizedServices map so we can use its key-set later
     recognizedServices = new HashMap<>();
     recognizedServices.put(SERVICE_TYPE_WAN_IP_CONNECTION, null);
+
+    forwardedPorts = new ArrayList<>();
 
     // registry listener to observe new devices and look for specific services
     registryListener =
@@ -120,6 +127,15 @@ public class UpnpNatManager {
     if (!started) {
       throw new IllegalStateException("Cannot stop already-stopped service");
     }
+
+    CompletableFuture<Void> portForwardReleaseFuture = releaseAllPortForwards();
+    try {
+      LOG.info("Allowing 3 seconds to release all port forwards...");
+      portForwardReleaseFuture.get(3, TimeUnit.SECONDS);
+    } catch (Exception e) {
+      LOG.warn("Caught exception while trying to release port forwards, ignoring", e);
+    }
+
     upnpService.getRegistry().removeListener(registryListener);
     upnpService.shutdown();
 
@@ -429,6 +445,11 @@ public class UpnpNatManager {
                       portMapping.getProtocol(),
                       portMapping.getInternalPort(),
                       portMapping.getExternalPort());
+
+                  synchronized (forwardedPorts) {
+                    forwardedPorts.add(portMapping);
+                  }
+
                   upnpQueryFuture.complete(null);
                 }
 
@@ -462,6 +483,97 @@ public class UpnpNatManager {
 
           return upnpQueryFuture;
         });
+  }
+
+  /**
+   * Attempts to release any forwarded ports.
+   *
+   * <p>Note that this is not synchronized, as it is expected to be called within an
+   * already-synchronized context ({@link #stop()}).
+   *
+   * @return A CompletableFuture that will complete when all port forward requests have been made
+   */
+  private CompletableFuture<Void> releaseAllPortForwards() {
+    if (!started) {
+      throw new IllegalStateException("Cannot call releaseAllPortForwards() when in stopped state");
+    }
+
+    // if we haven't observed the WANIPConnection service yet, we should have no port forwards to
+    // release
+    RemoteService service = getService(SERVICE_TYPE_WAN_IP_CONNECTION);
+    if (null == service) {
+      return CompletableFuture.completedFuture(null);
+    }
+
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+    boolean done = false;
+    while (!done) {
+      PortMapping portMapping = null;
+      synchronized (forwardedPorts) {
+        if (forwardedPorts.size() == 0) {
+          done = true;
+          continue;
+        }
+
+        portMapping = forwardedPorts.get(0);
+        forwardedPorts.remove(0);
+      }
+
+      LOG.info(
+          "Releasing port forward for {} {} -> {}",
+          portMapping.getProtocol(),
+          portMapping.getInternalPort(),
+          portMapping.getExternalPort());
+
+      CompletableFuture<Void> future = new CompletableFuture<>();
+
+      PortMappingDelete callback =
+          new PortMappingDelete(service, portMapping) {
+            /**
+             * Because the underlying jupnp library omits generics info in this method signature, we
+             * must too when we override it.
+             */
+            @Override
+            @SuppressWarnings("rawtypes")
+            public void success(final ActionInvocation invocation) {
+              LOG.info(
+                  "Port forward {} {} -> {} removed successfully.",
+                  portMapping.getProtocol(),
+                  portMapping.getInternalPort(),
+                  portMapping.getExternalPort());
+
+              future.complete(null);
+            }
+
+            /**
+             * Because the underlying jupnp library omits generics info in this method signature, we
+             * must too when we override it.
+             */
+            @Override
+            @SuppressWarnings("rawtypes")
+            public void failure(
+                final ActionInvocation invocation, final UpnpResponse operation, final String msg) {
+              LOG.warn(
+                  "Port forward removal request for {} {} -> {} failed (ignoring): {}",
+                  portMapping.getProtocol(),
+                  portMapping.getInternalPort(),
+                  portMapping.getExternalPort(),
+                  msg);
+
+              // ignore exceptions; we did our best
+              future.complete(null);
+            }
+          };
+
+      upnpService.getControlPoint().execute(callback);
+
+      futures.add(future);
+    }
+
+    // return a future that completes succeessfully only when each of our port delete requests
+    // complete
+    return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]));
   }
 
   /**
