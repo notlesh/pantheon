@@ -165,7 +165,9 @@ public class JsonRpcHttpService {
 
     // Request that a NAT port forward for our server port
     if (natManager.isPresent()) {
-      natManager.get().requestPortForward(config.getPort(), "TCP", "partheon-json-rpc");
+      natManager
+          .get()
+          .requestPortForward(config.getPort(), UpnpNatManager.Protocol.TCP, "partheon-json-rpc");
     }
 
     // Create the HTTP server and a router object.

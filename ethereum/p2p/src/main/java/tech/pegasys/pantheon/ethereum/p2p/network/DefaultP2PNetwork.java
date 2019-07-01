@@ -377,10 +377,13 @@ public class DefaultP2PNetwork implements P2PNetwork {
         this.natManager
             .get()
             .requestPortForward(
-                this.config.getDiscovery().getBindPort(), "TCP", "pantheon-discovery");
+                this.config.getDiscovery().getBindPort(),
+                UpnpNatManager.Protocol.TCP,
+                "pantheon-discovery");
         this.natManager
             .get()
-            .requestPortForward(this.config.getRlpx().getBindPort(), "TCP", "pantheon-rlpx");
+            .requestPortForward(
+                this.config.getRlpx().getBindPort(), UpnpNatManager.Protocol.TCP, "pantheon-rlpx");
       } else {
         LOG.info("No external IP detected within timeout.");
       }

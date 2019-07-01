@@ -61,6 +61,12 @@ public class UpnpNatManager {
   private final List<PortMapping> forwardedPorts;
   private String discoveredOnLocalAddress = null;
 
+  /** Mirrored enum from PortMapping.Protocol to avoid bleeding jupnp types into calling code */
+  public static enum Protocol {
+    UDP,
+    TCP
+  }
+
   /** Empty constructor. Creates in instance of UpnpServiceImpl. */
   public UpnpNatManager() {
     // this(new UpnpServiceImpl(new DefaultUpnpServiceConfiguration()));
@@ -349,12 +355,12 @@ public class UpnpNatManager {
    * <p>In addition, port is used for both internal and external port values.
    *
    * @param port is the port to be used for both internal and external port values
-   * @param protocol is either "udp" or "tcp"
+   * @param protocol is either UDP or TCP
    * @param description is a free-form description, often displayed in router UIs
    * @return A CompletableFuture which will provide the results of the request
    */
   public CompletableFuture<Void> requestPortForward(
-      final int port, final String protocol, final String description) {
+      final int port, final Protocol protocol, final String description) {
 
     return this.requestPortForward(
         new PortMapping(
@@ -364,7 +370,7 @@ public class UpnpNatManager {
             new UnsignedIntegerTwoBytes(port),
             new UnsignedIntegerTwoBytes(port),
             null,
-            PortMapping.Protocol.valueOf(protocol),
+            toJupnpProtocol(protocol),
             description));
   }
 
@@ -381,7 +387,7 @@ public class UpnpNatManager {
    * @param externalPort is the source port (the port visible to the Internet)
    * @param internalPort is the destination port (the port to be forwarded to)
    * @param internalClient is the destination host on the local LAN
-   * @param protocol is either "udp" or "tcp"
+   * @param protocol is either UDP or TCP
    * @param description is a free-form description, often displayed in router UIs
    * @return A CompletableFuture which will provide the results of the request
    */
@@ -392,7 +398,7 @@ public class UpnpNatManager {
       final int externalPort,
       final int internalPort,
       final String internalClient,
-      final String protocol,
+      final Protocol protocol,
       final String description) {
 
     return this.requestPortForward(
@@ -403,7 +409,7 @@ public class UpnpNatManager {
             new UnsignedIntegerTwoBytes(externalPort),
             new UnsignedIntegerTwoBytes(internalPort),
             internalClient,
-            PortMapping.Protocol.valueOf(protocol),
+            toJupnpProtocol(protocol),
             description));
   }
 
@@ -601,5 +607,15 @@ public class UpnpNatManager {
     for (RemoteDevice subDevice : device.getEmbeddedDevices()) {
       inspectDeviceRecursive(subDevice, serviceTypes);
     }
+  }
+
+  private PortMapping.Protocol toJupnpProtocol(final Protocol protocol) {
+    switch (protocol) {
+      case UDP:
+        return PortMapping.Protocol.UDP;
+      case TCP:
+        return PortMapping.Protocol.TCP;
+    }
+    return null;
   }
 }
