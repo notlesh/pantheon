@@ -449,7 +449,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
     private PeerDiscoveryAgent createDiscoveryAgent() {
 
       return new VertxPeerDiscoveryAgent(
-          vertx, keyPair, config.getDiscovery(), peerPermissions, metricsSystem);
+          vertx, keyPair, config.getDiscovery(), peerPermissions, natManager, metricsSystem);
     }
 
     private RlpxAgent createRlpxAgent(
