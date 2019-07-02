@@ -217,10 +217,6 @@ public class DefaultP2PNetwork implements P2PNetwork {
     peerBondedObserverId.ifPresent(peerDiscoveryAgent::removePeerBondedObserver);
     peerBondedObserverId = OptionalLong.empty();
     peerPermissions.close();
-
-    if (natManager.isPresent()) {
-      natManager.get().stop();
-    }
   }
 
   @Override

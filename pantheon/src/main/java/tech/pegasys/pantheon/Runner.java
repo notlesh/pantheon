@@ -118,6 +118,10 @@ public class Runner implements AutoCloseable {
         pantheonController.getSynchronizer().stop();
       }
 
+      if (natManager.isPresent()) {
+        natManager.get().stop();
+      }
+
       networkRunner.stop();
       networkRunner.awaitStop();
 
