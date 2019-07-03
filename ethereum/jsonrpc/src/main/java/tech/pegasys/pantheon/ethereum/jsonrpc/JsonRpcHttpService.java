@@ -163,13 +163,6 @@ public class JsonRpcHttpService {
   public CompletableFuture<?> start() {
     LOG.info("Starting JsonRPC service on {}:{}", config.getHost(), config.getPort());
 
-    // Request that a NAT port forward for our server port
-    if (natManager.isPresent()) {
-      natManager
-          .get()
-          .requestPortForward(config.getPort(), UpnpNatManager.Protocol.TCP, "partheon-json-rpc");
-    }
-
     // Create the HTTP server and a router object.
     httpServer =
         vertx.createHttpServer(
@@ -233,6 +226,13 @@ public class JsonRpcHttpService {
                 LOG.info(
                     "JsonRPC service started and listening on {}:{}", config.getHost(), actualPort);
                 config.setPort(actualPort);
+                // Request that a NAT port forward for our server port
+                if (natManager.isPresent()) {
+                  natManager
+                      .get()
+                      .requestPortForward(
+                          config.getPort(), UpnpNatManager.Protocol.TCP, "partheon-json-rpc");
+                }
                 return;
               }
               httpServer = null;
