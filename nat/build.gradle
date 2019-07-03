@@ -14,7 +14,7 @@
 apply plugin: 'java-library'
 
 jar {
-  baseName 'pantheon-p2p'
+  baseName 'pantheon-nat'
   manifest {
     attributes(
       'Specification-Title': baseName,
@@ -26,20 +26,11 @@ jar {
 }
 
 dependencies {
-  implementation project(':crypto')
-  implementation project(':ethereum:core')
-  implementation project(':ethereum:rlp')
-  implementation project(':metrics:core')
-  implementation project(':nat')
-
   implementation 'com.google.guava:guava'
   implementation 'com.squareup.okhttp3:okhttp'
-  implementation 'io.prometheus:simpleclient'
-  implementation 'io.vertx:vertx-core'
   implementation 'org.apache.logging.log4j:log4j-api'
   implementation 'org.jupnp:org.jupnp'
   implementation 'org.jupnp:org.jupnp.support'
-  implementation 'org.xerial.snappy:snappy-java'
 
   runtime 'org.apache.logging.log4j:log4j-core'
   runtime 'org.slf4j:slf4j-log4j12'
@@ -49,14 +40,7 @@ dependencies {
   testImplementation project(path: ':ethereum:core', configuration: 'testSupportArtifacts')
   testImplementation project(':testutil')
 
-  testImplementation('io.pkts:pkts-core') {
-    exclude group: 'io.pkts', module: 'pkts-sdp'
-    exclude group: 'io.pkts', module: 'pkts-sip'
-  }
-  testImplementation 'io.vertx:vertx-unit'
-  testImplementation 'io.vertx:vertx-codegen'
   testImplementation 'junit:junit'
   testImplementation 'org.assertj:assertj-core'
-  testImplementation 'org.awaitility:awaitility'
   testImplementation 'org.mockito:mockito-core'
 }
