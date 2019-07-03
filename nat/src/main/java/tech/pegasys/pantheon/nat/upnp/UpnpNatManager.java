@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -48,21 +49,21 @@ import org.jupnp.support.model.PortMapping;
 public class UpnpNatManager {
   protected static final Logger LOG = LogManager.getLogger();
 
-  public static final String SERVICE_TYPE_WAN_IP_CONNECTION = "WANIPConnection";
+  static final String SERVICE_TYPE_WAN_IP_CONNECTION = "WANIPConnection";
 
   private boolean started = false;
-  private UpnpService upnpService = null;
-  private RegistryListener registryListener = null;
+  private final UpnpService upnpService;
+  private final RegistryListener registryListener;
 
   // internally-managed future. external queries for IP addresses will be copy()ed from this.
-  private CompletableFuture<String> externalIpQueryFuture = null;
+  private final CompletableFuture<String> externalIpQueryFuture = new CompletableFuture<>();
 
-  private Map<String, CompletableFuture<RemoteService>> recognizedServices;
-  private final List<PortMapping> forwardedPorts;
-  private String discoveredOnLocalAddress = null;
+  private final Map<String, CompletableFuture<RemoteService>> recognizedServices = new HashMap<>();
+  private final List<PortMapping> forwardedPorts = new ArrayList<>();
+  private Optional<String> discoveredOnLocalAddress = Optional.empty();
 
   /** Mirrored enum from PortMapping.Protocol to avoid bleeding jupnp types into calling code */
-  public static enum Protocol {
+  public enum Protocol {
     UDP,
     TCP
   }
@@ -89,10 +90,7 @@ public class UpnpNatManager {
     upnpService = service;
 
     // prime our recognizedServices map so we can use its key-set later
-    recognizedServices = new HashMap<>();
     recognizedServices.put(SERVICE_TYPE_WAN_IP_CONNECTION, new CompletableFuture<>());
-
-    forwardedPorts = new ArrayList<>();
 
     // registry listener to observe new devices and look for specific services
     registryListener =
@@ -131,7 +129,8 @@ public class UpnpNatManager {
    */
   public synchronized void stop() {
     if (!started) {
-      throw new IllegalStateException("Cannot stop already-stopped service");
+      LOG.warn("Attempt to stop an already-stopped {}", getClass().getSimpleName());
+      return;
     }
 
     CompletableFuture<Void> portForwardReleaseFuture = releaseAllPortForwards();
@@ -182,10 +181,10 @@ public class UpnpNatManager {
    * <p>This can be useful to distinguish which network interface the external address was
    * discovered on.
    *
-   * @return the local address on which our GetExternalIP was discovered on, or null if no
+   * @return the local address on which our GetExternalIP was discovered on, or an empty value if no
    *     GetExternalIP query has been performed successfully.
    */
-  public String getDiscoveredOnLocalAddress() {
+  public Optional<String> getDiscoveredOnLocalAddress() {
     if (!started) {
       throw new IllegalStateException(
           "Cannot call getDiscoveredOnLocalAddress() when in stopped state");
@@ -227,66 +226,60 @@ public class UpnpNatManager {
    * @return A CompletableFuture that can be used to query the result (or error).
    */
   private void initiateExternalIpQuery() {
-    CompletableFuture<String> upnpQueryFuture = new CompletableFuture<>();
+    discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
+        .thenAccept(
+            service -> {
 
-    externalIpQueryFuture =
-        discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
-            .thenCompose(
-                service -> {
+              // our query, which will be handled asynchronously by the jupnp library
+              GetExternalIP callback =
+                  new GetExternalIP(service) {
 
-                  // our query, which will be handled asynchronously by the jupnp library
-                  GetExternalIP callback =
-                      new GetExternalIP(service) {
+                    /**
+                     * Override the success(ActionInvocation) version of success so that we can take
+                     * a peek at the network interface that we discovered this on.
+                     *
+                     * <p>Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
+                     */
+                    @Override
+                    @SuppressWarnings("rawtypes")
+                    public void success(final ActionInvocation invocation) {
+                      RemoteService service = (RemoteService) invocation.getAction().getService();
+                      RemoteDevice device = service.getDevice();
+                      RemoteDeviceIdentity identity = device.getIdentity();
 
-                        /**
-                         * Override the success(ActionInvocation) version of success so that we can
-                         * take a peek at the network interface that we discovered this on.
-                         *
-                         * <p>Because the underlying jupnp library omits generics info in this
-                         * method signature, we must too when we override it.
-                         */
-                        @Override
-                        @SuppressWarnings("rawtypes")
-                        public void success(final ActionInvocation invocation) {
-                          RemoteService service =
-                              (RemoteService) invocation.getAction().getService();
-                          RemoteDevice device = service.getDevice();
-                          RemoteDeviceIdentity identity = device.getIdentity();
+                      discoveredOnLocalAddress =
+                          Optional.of(identity.getDiscoveredOnLocalAddress().getHostAddress());
 
-                          discoveredOnLocalAddress =
-                              identity.getDiscoveredOnLocalAddress().getHostAddress();
+                      super.success(invocation);
+                    }
 
-                          super.success(invocation);
-                        }
+                    @Override
+                    protected void success(final String result) {
 
-                        @Override
-                        protected void success(final String result) {
+                      LOG.info(
+                          "External IP address {} detected for internal address {}",
+                          result,
+                          discoveredOnLocalAddress.get());
 
-                          LOG.info(
-                              "External IP address {} detected for internal address {}",
-                              result,
-                              discoveredOnLocalAddress);
+                      externalIpQueryFuture.complete(result);
+                    }
 
-                          upnpQueryFuture.complete(result);
-                        }
-
-                        /**
-                         * Because the underlying jupnp library omits generics info in this method
-                         * signature, we must too when we override it.
-                         */
-                        @Override
-                        @SuppressWarnings("rawtypes")
-                        public void failure(
-                            final ActionInvocation invocation,
-                            final UpnpResponse operation,
-                            final String msg) {
-                          upnpQueryFuture.completeExceptionally(new Exception(msg));
-                        }
-                      };
-                  upnpService.getControlPoint().execute(callback);
-
-                  return upnpQueryFuture;
-                });
+                    /**
+                     * Because the underlying jupnp library omits generics info in this method
+                     * signature, we must too when we override it.
+                     */
+                    @Override
+                    @SuppressWarnings("rawtypes")
+                    public void failure(
+                        final ActionInvocation invocation,
+                        final UpnpResponse operation,
+                        final String msg) {
+                      externalIpQueryFuture.completeExceptionally(new Exception(msg));
+                    }
+                  };
+              upnpService.getControlPoint().execute(callback);
+            });
   }
 
   /**
@@ -298,8 +291,7 @@ public class UpnpNatManager {
     if (!started) {
       throw new IllegalStateException("Cannot call queryStatusInfo() when in stopped state");
     }
-
-    CompletableFuture<Connection.StatusInfo> upnpQueryFuture = new CompletableFuture<>();
+    final CompletableFuture<Connection.StatusInfo> upnpQueryFuture = new CompletableFuture<>();
 
     return discoverService(SERVICE_TYPE_WAN_IP_CONNECTION)
         .thenCompose(
@@ -420,7 +412,7 @@ public class UpnpNatManager {
           // at this point, we should have the local address we discovered the IGD on,
           // so we can prime the NewInternalClient field if it was omitted
           if (null == portMapping.getInternalClient()) {
-            portMapping.setInternalClient(discoveredOnLocalAddress);
+            portMapping.setInternalClient(discoveredOnLocalAddress.get());
           }
 
           // our query, which will be handled asynchronously by the jupnp library
