@@ -27,9 +27,10 @@ import tech.pegasys.pantheon.ethereum.chain.GenesisState;
 import tech.pegasys.pantheon.ethereum.chain.MutableBlockchain;
 import tech.pegasys.pantheon.ethereum.core.BlockHeaderFunctions;
 import tech.pegasys.pantheon.ethereum.core.Transaction;
+import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.difficulty.fixed.FixedDifficultyProtocolSchedule;
 import tech.pegasys.pantheon.ethereum.eth.EthProtocol;
-import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
+import tech.pegasys.pantheon.ethereum.eth.EthProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthContext;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
@@ -115,7 +116,7 @@ public class TestNode implements Closeable {
             1,
             TestClock.fixed(),
             new NoOpMetricsSystem(),
-            EthereumWireProtocolConfiguration.defaultConfig());
+            EthProtocolConfiguration.defaultConfig());
 
     final NetworkRunner networkRunner =
         NetworkRunner.builder()
@@ -147,10 +148,10 @@ public class TestNode implements Closeable {
             protocolContext,
             ethContext,
             TestClock.fixed(),
-            PendingTransactions.MAX_PENDING_TRANSACTIONS,
             metricsSystem,
             syncState,
-            PendingTransactions.DEFAULT_TX_RETENTION_HOURS);
+            Wei.ZERO,
+            TransactionPoolConfiguration.builder().build());
 
     networkRunner.start();
     selfPeer = DefaultPeer.fromEnodeURL(network.getLocalEnode().get());

@@ -25,6 +25,10 @@ if (env.BRANCH_NAME == "master") {
 def docker_image_dind = 'docker:18.06.0-ce-dind'
 def docker_image = 'docker:18.06.0-ce'
 def build_image = 'pegasyseng/pantheon-build:0.0.5-jdk11'
+def registry = 'https://registry.hub.docker.com'
+def userAccount = 'dockerhub-pegasysengci'
+def imageRepos = 'pegasyseng'
+def imageTag = 'develop'
 
 def abortPreviousBuilds() {
     Run previousBuild = currentBuild.rawBuild.getPreviousBuildInProgress()
@@ -174,31 +178,24 @@ try {
                     }
                 }
             }
-        }
-
-        if (env.BRANCH_NAME == "master") {
-            def registry = 'https://registry.hub.docker.com'
-            def userAccount = 'dockerhub-pegasysengci'
-            def imageRepos = 'pegasyseng'
-            def imageTag = 'develop'
-            parallel KubernetesDockerImage: {
+        }, KubernetesDockerImage: {
                 def stage_name = 'Kubernetes Docker image node: '
                 def image = imageRepos + '/pantheon-kubernetes:' + imageTag
                 def kubernetes_folder = 'kubernetes'
-                def kubernetes_image_build_script = kubernetes_folder + '/build_image.sh'
                 def version_property_file = 'gradle.properties'
                 def reports_folder = kubernetes_folder + '/reports'
                 def dockerfile = kubernetes_folder + '/Dockerfile'
                 node {
                     checkout scm
-                    unstash 'distTarBall'
                     docker.image(build_image).inside() {
                         stage(stage_name + 'Dockerfile lint') {
                             sh "docker run --rm -i hadolint/hadolint < ${dockerfile}"
                         }
+
                         stage(stage_name + 'Build image') {
-                            sh "${kubernetes_image_build_script} '${image}'"
+                            sh './gradlew docker'
                         }
+
                         stage(stage_name + "Test image labels") {
                             shortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
                             version = sh(returnStdout: true, script: "grep -oE \"version=(.*)\" ${version_property_file} | cut -d= -f2").trim()
@@ -211,6 +208,7 @@ try {
     ${image} \
     | grep ${version}"
                         }
+
                         try {
                             stage(stage_name + 'Test image') {
                                 sh "mkdir -p ${reports_folder}"
@@ -220,40 +218,43 @@ try {
                             junit "${reports_folder}/*.xml"
                             sh "rm -rf ${reports_folder}"
                         }
-                        stage(stage_name + 'Push image') {
-                            docker.withRegistry(registry, userAccount) {
-                                docker.image(image).push()
+
+                        if (env.BRANCH_NAME == "master") {
+                            stage(stage_name + 'Push image') {
+                                docker.withRegistry(registry, userAccount) {
+                                    docker.image(image).push()
+                                }
                             }
                         }
                     }
                 }
-            },
-            DockerImage: {
+            }
+
+        if (env.BRANCH_NAME == "master") {
+            node {
                 def stage_name = 'Docker image node: '
                 def image = imageRepos + '/pantheon:' + imageTag
-                node {
-                    checkout scm
-                    unstash 'distTarBall'
-                    docker.image(docker_image_dind).withRun('--privileged') { d ->
-                        docker.image(docker_image).inside("-e DOCKER_HOST=tcp://docker:2375 --link ${d.id}:docker") {
-                            stage(stage_name + 'build image') {
-                                sh "cd docker && cp ../build/distributions/pantheon-*.tar.gz ."
-                                pantheon = docker.build(image, "docker")
+                checkout scm
+                unstash 'distTarBall'
+                docker.image(docker_image_dind).withRun('--privileged') { d ->
+                    docker.image(docker_image).inside("-e DOCKER_HOST=tcp://docker:2375 --link ${d.id}:docker") {
+                        stage(stage_name + 'build image') {
+                            sh "cd docker && cp ../build/distributions/pantheon-*.tar.gz ."
+                            pantheon = docker.build(image, "docker")
+                        }
+                        try {
+                            stage('test image') {
+                                sh "apk add bash"
+                                sh "mkdir -p docker/reports"
+                                sh "cd docker && bash test.sh ${image}"
                             }
-                            try {
-                                stage('test image') {
-                                    sh "apk add bash"
-                                    sh "mkdir -p docker/reports"
-                                    sh "cd docker && bash test.sh ${image}"
-                                }
-                            } finally {
-                                junit 'docker/reports/*.xml'
-                                sh "rm -rf docker/reports"
-                            }
-                            stage(stage_name + 'push image') {
-                                docker.withRegistry(registry, userAccount) {
-                                    pantheon.push()
-                                }
+                        } finally {
+                            junit 'docker/reports/*.xml'
+                            sh "rm -rf docker/reports"
+                        }
+                        stage(stage_name + 'push image') {
+                            docker.withRegistry(registry, userAccount) {
+                                pantheon.push()
                             }
                         }
                     }

@@ -27,7 +27,7 @@ import tech.pegasys.pantheon.ethereum.core.MiningParameters;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Synchronizer;
 import tech.pegasys.pantheon.ethereum.eth.EthProtocol;
-import tech.pegasys.pantheon.ethereum.eth.EthereumWireProtocolConfiguration;
+import tech.pegasys.pantheon.ethereum.eth.EthProtocolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthContext;
 import tech.pegasys.pantheon.ethereum.eth.manager.EthProtocolManager;
 import tech.pegasys.pantheon.ethereum.eth.peervalidation.DaoForkPeerValidator;
@@ -37,6 +37,7 @@ import tech.pegasys.pantheon.ethereum.eth.sync.SyncMode;
 import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.sync.state.SyncState;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPool;
+import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPoolConfiguration;
 import tech.pegasys.pantheon.ethereum.eth.transactions.TransactionPoolFactory;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.JsonRpcMethodFactory;
 import tech.pegasys.pantheon.ethereum.mainnet.ProtocolSchedule;
@@ -65,15 +66,14 @@ public abstract class PantheonControllerBuilder<C> {
   protected GenesisConfigFile genesisConfig;
   protected SynchronizerConfiguration syncConfig;
   protected EthProtocolManager ethProtocolManager;
-  protected EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration;
+  protected EthProtocolConfiguration ethereumWireProtocolConfiguration;
+  protected TransactionPoolConfiguration transactionPoolConfiguration;
   protected Integer networkId;
   protected MiningParameters miningParameters;
   protected MetricsSystem metricsSystem;
   protected PrivacyParameters privacyParameters;
   protected Path dataDirectory;
   protected Clock clock;
-  protected Integer maxPendingTransactions;
-  protected Integer pendingTransactionRetentionPeriod;
   protected KeyPair nodeKeys;
   private StorageProvider storageProvider;
   private final List<Runnable> shutdownActions = new ArrayList<>();
@@ -101,9 +101,9 @@ public abstract class PantheonControllerBuilder<C> {
     return this;
   }
 
-  public PantheonControllerBuilder<C> ethereumWireProtocolConfiguration(
-      final EthereumWireProtocolConfiguration ethereumWireProtocolConfiguration) {
-    this.ethereumWireProtocolConfiguration = ethereumWireProtocolConfiguration;
+  public PantheonControllerBuilder<C> ethProtocolConfiguration(
+      final EthProtocolConfiguration ethProtocolConfiguration) {
+    this.ethereumWireProtocolConfiguration = ethProtocolConfiguration;
     return this;
   }
 
@@ -148,14 +148,9 @@ public abstract class PantheonControllerBuilder<C> {
     return this;
   }
 
-  public PantheonControllerBuilder<C> maxPendingTransactions(final int maxPendingTransactions) {
-    this.maxPendingTransactions = maxPendingTransactions;
-    return this;
-  }
-
-  public PantheonControllerBuilder<C> pendingTransactionRetentionPeriod(
-      final int pendingTransactionRetentionPeriod) {
-    this.pendingTransactionRetentionPeriod = pendingTransactionRetentionPeriod;
+  public PantheonControllerBuilder<C> transactionPoolConfiguration(
+      final TransactionPoolConfiguration transactionPoolConfiguration) {
+    this.transactionPoolConfiguration = transactionPoolConfiguration;
     return this;
   }
 
@@ -169,7 +164,7 @@ public abstract class PantheonControllerBuilder<C> {
     checkNotNull(privacyParameters, "Missing privacy parameters");
     checkNotNull(dataDirectory, "Missing data directory"); // Why do we need this?
     checkNotNull(clock, "Mising clock");
-    checkNotNull(maxPendingTransactions, "Missing max pending transactions");
+    checkNotNull(transactionPoolConfiguration, "Missing transaction pool configuration");
     checkNotNull(nodeKeys, "Missing node keys");
     checkArgument(
         storageProvider != null || rocksDbConfiguration != null,
@@ -198,7 +193,7 @@ public abstract class PantheonControllerBuilder<C> {
 
     final MutableBlockchain blockchain = protocolContext.getBlockchain();
 
-    final boolean fastSyncEnabled = syncConfig.syncMode().equals(SyncMode.FAST);
+    final boolean fastSyncEnabled = syncConfig.getSyncMode().equals(SyncMode.FAST);
     ethProtocolManager = createEthProtocolManager(protocolContext, fastSyncEnabled);
     final SyncState syncState =
         new SyncState(blockchain, ethProtocolManager.ethContext().getEthPeers());
@@ -231,10 +226,10 @@ public abstract class PantheonControllerBuilder<C> {
             protocolContext,
             ethProtocolManager.ethContext(),
             clock,
-            maxPendingTransactions,
             metricsSystem,
             syncState,
-            pendingTransactionRetentionPeriod);
+            miningParameters.getMinTransactionGasPrice(),
+            transactionPoolConfiguration);
 
     final MiningCoordinator miningCoordinator =
         createMiningCoordinator(
@@ -313,9 +308,9 @@ public abstract class PantheonControllerBuilder<C> {
         protocolContext.getWorldStateArchive(),
         networkId,
         fastSyncEnabled,
-        syncConfig.downloaderParallelism(),
-        syncConfig.transactionsParallelism(),
-        syncConfig.computationParallelism(),
+        syncConfig.getDownloaderParallelism(),
+        syncConfig.getTransactionsParallelism(),
+        syncConfig.getComputationParallelism(),
         clock,
         metricsSystem,
         ethereumWireProtocolConfiguration);

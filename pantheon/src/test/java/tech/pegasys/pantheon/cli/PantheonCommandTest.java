@@ -22,11 +22,11 @@ import static org.mockito.ArgumentMatchers.isNotNull;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
-import static tech.pegasys.pantheon.cli.NetworkName.DEV;
-import static tech.pegasys.pantheon.cli.NetworkName.GOERLI;
-import static tech.pegasys.pantheon.cli.NetworkName.MAINNET;
-import static tech.pegasys.pantheon.cli.NetworkName.RINKEBY;
-import static tech.pegasys.pantheon.cli.NetworkName.ROPSTEN;
+import static tech.pegasys.pantheon.cli.config.NetworkName.DEV;
+import static tech.pegasys.pantheon.cli.config.NetworkName.GOERLI;
+import static tech.pegasys.pantheon.cli.config.NetworkName.MAINNET;
+import static tech.pegasys.pantheon.cli.config.NetworkName.RINKEBY;
+import static tech.pegasys.pantheon.cli.config.NetworkName.ROPSTEN;
 import static tech.pegasys.pantheon.ethereum.jsonrpc.RpcApis.ETH;
 import static tech.pegasys.pantheon.ethereum.jsonrpc.RpcApis.NET;
 import static tech.pegasys.pantheon.ethereum.jsonrpc.RpcApis.PERM;
@@ -34,13 +34,14 @@ import static tech.pegasys.pantheon.ethereum.jsonrpc.RpcApis.WEB3;
 import static tech.pegasys.pantheon.ethereum.p2p.config.DiscoveryConfiguration.MAINNET_BOOTSTRAP_NODES;
 
 import tech.pegasys.pantheon.PantheonInfo;
+import tech.pegasys.pantheon.cli.config.EthNetworkConfig;
 import tech.pegasys.pantheon.config.GenesisConfigFile;
 import tech.pegasys.pantheon.ethereum.core.Address;
 import tech.pegasys.pantheon.ethereum.core.MiningParameters;
 import tech.pegasys.pantheon.ethereum.core.PrivacyParameters;
 import tech.pegasys.pantheon.ethereum.core.Wei;
 import tech.pegasys.pantheon.ethereum.eth.sync.SyncMode;
-import tech.pegasys.pantheon.ethereum.eth.transactions.PendingTransactions;
+import tech.pegasys.pantheon.ethereum.eth.sync.SynchronizerConfiguration;
 import tech.pegasys.pantheon.ethereum.graphql.GraphQLConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.JsonRpcConfiguration;
 import tech.pegasys.pantheon.ethereum.jsonrpc.RpcApi;
@@ -165,14 +166,13 @@ public class PantheonCommandTest extends CommandTestAbstract {
     verify(mockControllerBuilderFactory).fromEthNetworkConfig(ethNetworkArg.capture());
     final ArgumentCaptor<MiningParameters> miningArg =
         ArgumentCaptor.forClass(MiningParameters.class);
-    verify(mockControllerBuilder).synchronizerConfiguration(isNotNull());
+    verify(mockControllerBuilder).synchronizerConfiguration(syncConfigurationCaptor.capture());
     verify(mockControllerBuilder).dataDirectory(isNotNull());
     verify(mockControllerBuilder).miningParameters(miningArg.capture());
     verify(mockControllerBuilder).nodePrivateKeyFile(isNotNull());
     verify(mockControllerBuilder).build();
 
-    verify(mockSyncConfBuilder).syncMode(eq(SyncMode.FULL));
-
+    assertThat(syncConfigurationCaptor.getValue().getSyncMode()).isEqualTo(SyncMode.FULL);
     assertThat(commandErrorOutput.toString()).isEmpty();
     assertThat(miningArg.getValue().getCoinbase()).isEqualTo(Optional.empty());
     assertThat(miningArg.getValue().getMinTransactionGasPrice()).isEqualTo(Wei.of(1000));
@@ -329,9 +329,10 @@ public class PantheonCommandTest extends CommandTestAbstract {
             .build();
     verify(mockControllerBuilder).dataDirectory(eq(Paths.get("/opt/pantheon").toAbsolutePath()));
     verify(mockControllerBuilderFactory).fromEthNetworkConfig(eq(networkConfig));
+    verify(mockControllerBuilder).synchronizerConfiguration(syncConfigurationCaptor.capture());
 
-    verify(mockSyncConfBuilder).syncMode(eq(SyncMode.FAST));
-    verify(mockSyncConfBuilder).fastSyncMinimumPeerCount(eq(13));
+    assertThat(syncConfigurationCaptor.getValue().getSyncMode()).isEqualTo(SyncMode.FAST);
+    assertThat(syncConfigurationCaptor.getValue().getFastSyncMinimumPeerCount()).isEqualTo(13);
 
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
@@ -652,7 +653,7 @@ public class PantheonCommandTest extends CommandTestAbstract {
     final Path toml = createTempFile("toml", Resources.toByteArray(configFile));
 
     // Parse it.
-    final CommandLine.Model.CommandSpec spec = parseCommand("--config-file", toml.toString());
+    final CommandLine.Model.CommandSpec spec = parseCommand("--config-file", toml.toString()).spec;
     final TomlParseResult tomlResult = Toml.parse(toml);
 
     // Verify we configured everything
@@ -717,20 +718,53 @@ public class PantheonCommandTest extends CommandTestAbstract {
     verify(mockRunnerBuilder).webSocketConfiguration(eq(webSocketConfiguration));
     verify(mockRunnerBuilder).metricsConfiguration(eq(metricsConfiguration));
     verify(mockRunnerBuilder).build();
-
-    verify(mockControllerBuilder)
-        .maxPendingTransactions(eq(PendingTransactions.MAX_PENDING_TRANSACTIONS));
-    verify(mockControllerBuilder)
-        .pendingTransactionRetentionPeriod(eq(PendingTransactions.DEFAULT_TX_RETENTION_HOURS));
     verify(mockControllerBuilder).build();
+    verify(mockControllerBuilder).synchronizerConfiguration(syncConfigurationCaptor.capture());
 
-    verify(mockSyncConfBuilder).syncMode(eq(SyncMode.FULL));
-    verify(mockSyncConfBuilder).fastSyncMinimumPeerCount(eq(5));
+    final SynchronizerConfiguration syncConfig = syncConfigurationCaptor.getValue();
+    assertThat(syncConfig.getSyncMode()).isEqualTo(SyncMode.FULL);
+    assertThat(syncConfig.getFastSyncMinimumPeerCount()).isEqualTo(5);
 
     assertThat(commandErrorOutput.toString()).isEmpty();
 
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
+  }
+
+  @Test
+  public void envVariableOverridesValueFromConfigFile() {
+    assumeTrue(isFullInstantiation());
+
+    final String configFile = this.getClass().getResource("/partial_config.toml").getFile();
+    final String expectedCoinbase = "0x0000000000000000000000000000000000000004";
+    setEnvironemntVariable("PANTHEON_MINER_COINBASE", expectedCoinbase);
+    parseCommand("--config-file", configFile);
+
+    verify(mockControllerBuilder)
+        .miningParameters(
+            new MiningParameters(
+                Address.fromHexString(expectedCoinbase),
+                DefaultCommandValues.DEFAULT_MIN_TRANSACTION_GAS_PRICE,
+                DefaultCommandValues.DEFAULT_EXTRA_DATA,
+                false));
+  }
+
+  @Test
+  public void cliOptionOverridesEnvVariableAndConfig() {
+    assumeTrue(isFullInstantiation());
+
+    final String configFile = this.getClass().getResource("/partial_config.toml").getFile();
+    final String expectedCoinbase = "0x0000000000000000000000000000000000000006";
+    setEnvironemntVariable("PANTHEON_MINER_COINBASE", "0x0000000000000000000000000000000000000004");
+    parseCommand("--config-file", configFile, "--miner-coinbase", expectedCoinbase);
+
+    verify(mockControllerBuilder)
+        .miningParameters(
+            new MiningParameters(
+                Address.fromHexString(expectedCoinbase),
+                DefaultCommandValues.DEFAULT_MIN_TRANSACTION_GAS_PRICE,
+                DefaultCommandValues.DEFAULT_EXTRA_DATA,
+                false));
   }
 
   @Test
@@ -1190,13 +1224,24 @@ public class PantheonCommandTest extends CommandTestAbstract {
   }
 
   @Test
-  public void syncModeOptionMustBeUsed() {
-
+  public void syncMode_fast() {
     parseCommand("--sync-mode", "FAST");
-    verify(mockSyncConfBuilder).syncMode(eq(SyncMode.FAST));
+    verify(mockControllerBuilder).synchronizerConfiguration(syncConfigurationCaptor.capture());
 
+    final SynchronizerConfiguration syncConfig = syncConfigurationCaptor.getValue();
+    assertThat(syncConfig.getSyncMode()).isEqualTo(SyncMode.FAST);
+
+    assertThat(commandOutput.toString()).isEmpty();
+    assertThat(commandErrorOutput.toString()).isEmpty();
+  }
+
+  @Test
+  public void syncMode_full() {
     parseCommand("--sync-mode", "FULL");
-    verify(mockSyncConfBuilder).syncMode(eq(SyncMode.FULL));
+    verify(mockControllerBuilder).synchronizerConfiguration(syncConfigurationCaptor.capture());
+
+    final SynchronizerConfiguration syncConfig = syncConfigurationCaptor.getValue();
+    assertThat(syncConfig.getSyncMode()).isEqualTo(SyncMode.FULL);
 
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
@@ -1214,10 +1259,12 @@ public class PantheonCommandTest extends CommandTestAbstract {
 
   @Test
   public void parsesValidFastSyncMinPeersOption() {
-
     parseCommand("--sync-mode", "FAST", "--fast-sync-min-peers", "11");
-    verify(mockSyncConfBuilder).syncMode(eq(SyncMode.FAST));
-    verify(mockSyncConfBuilder).fastSyncMinimumPeerCount(eq(11));
+    verify(mockControllerBuilder).synchronizerConfiguration(syncConfigurationCaptor.capture());
+
+    final SynchronizerConfiguration syncConfig = syncConfigurationCaptor.getValue();
+    assertThat(syncConfig.getSyncMode()).isEqualTo(SyncMode.FAST);
+    assertThat(syncConfig.getFastSyncMinimumPeerCount()).isEqualTo(11);
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
   }
@@ -1274,89 +1321,6 @@ public class PantheonCommandTest extends CommandTestAbstract {
 
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
-  }
-
-  @Test
-  public void parsesValidEwpMaxGetHeadersOptions() {
-
-    parseCommand("--Xewp-max-get-headers", "13");
-    verify(mockEthereumWireProtocolConfigurationBuilder).build();
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString()).isEmpty();
-  }
-
-  @Test
-  public void parsesInvalidEwpMaxGetHeadersOptionsShouldFail() {
-
-    parseCommand("--Xewp-max-get-headers", "-13");
-    verifyZeroInteractions(mockRunnerBuilder);
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString())
-        .contains(
-            "Invalid value for option '--Xewp-max-get-headers': cannot convert '-13' to PositiveNumber");
-  }
-
-  @Test
-  public void parsesValidEwpMaxGetBodiesOptions() {
-
-    parseCommand("--Xewp-max-get-bodies", "14");
-    verify(mockEthereumWireProtocolConfigurationBuilder).build();
-
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString()).isEmpty();
-  }
-
-  @Test
-  public void parsesInvalidEwpMaxGetBodiesOptionsShouldFail() {
-
-    parseCommand("--Xewp-max-get-bodies", "-14");
-    verifyZeroInteractions(mockRunnerBuilder);
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString())
-        .contains(
-            "Invalid value for option '--Xewp-max-get-bodies': cannot convert '-14' to PositiveNumber");
-  }
-
-  @Test
-  public void parsesValidEwpMaxGetReceiptsOptions() {
-
-    parseCommand("--Xewp-max-get-receipts", "15");
-    verify(mockEthereumWireProtocolConfigurationBuilder).build();
-
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString()).isEmpty();
-  }
-
-  @Test
-  public void parsesInvalidEwpMaxGetReceiptsOptionsShouldFail() {
-
-    parseCommand("--Xewp-max-get-receipts", "-15");
-    verifyZeroInteractions(mockRunnerBuilder);
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString())
-        .contains(
-            "Invalid value for option '--Xewp-max-get-receipts': cannot convert '-15' to PositiveNumber");
-  }
-
-  @Test
-  public void parsesValidEwpMaxGetNodeDataOptions() {
-
-    parseCommand("--Xewp-max-get-node-data", "16");
-    verify(mockEthereumWireProtocolConfigurationBuilder).build();
-
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString()).isEmpty();
-  }
-
-  @Test
-  public void parsesInvalidEwpMaxGetNodeDataOptionsShouldFail() {
-
-    parseCommand("--Xewp-max-get-node-data", "-16");
-    verifyZeroInteractions(mockRunnerBuilder);
-    assertThat(commandOutput.toString()).isEmpty();
-    assertThat(commandErrorOutput.toString())
-        .contains(
-            "Invalid value for option '--Xewp-max-get-node-data': cannot convert '-16' to PositiveNumber");
   }
 
   @Test
@@ -2623,11 +2587,23 @@ public class PantheonCommandTest extends CommandTestAbstract {
   public void pendingTransactionRetentionPeriod() {
     final int pendingTxRetentionHours = 999;
     parseCommand("--tx-pool-retention-hours", String.valueOf(pendingTxRetentionHours));
-
-    verify(mockControllerBuilder).pendingTransactionRetentionPeriod(intArgumentCaptor.capture());
-    verify(mockControllerBuilder).pendingTransactionRetentionPeriod(eq(pendingTxRetentionHours));
-
+    verify(mockControllerBuilder)
+        .transactionPoolConfiguration(transactionPoolConfigCaptor.capture());
+    assertThat(transactionPoolConfigCaptor.getValue().getPendingTxRetentionPeriod())
+        .isEqualTo(pendingTxRetentionHours);
     assertThat(commandOutput.toString()).isEmpty();
     assertThat(commandErrorOutput.toString()).isEmpty();
+  }
+
+  @Test
+  public void txMessageKeepAliveSecondsWithInvalidInputShouldFail() {
+    parseCommand("--Xincoming-tx-messages-keep-alive-seconds", "acbd");
+
+    verifyZeroInteractions(mockRunnerBuilder);
+
+    assertThat(commandOutput.toString()).isEmpty();
+    assertThat(commandErrorOutput.toString())
+        .contains(
+            "Invalid value for option '--Xincoming-tx-messages-keep-alive-seconds': 'acbd' is not an int");
   }
 }

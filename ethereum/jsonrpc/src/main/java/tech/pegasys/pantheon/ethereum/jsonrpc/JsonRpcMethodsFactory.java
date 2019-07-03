@@ -88,7 +88,10 @@ import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.Per
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.PermReloadPermissionsFromFile;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.PermRemoveAccountsFromWhitelist;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.permissioning.PermRemoveNodesFromWhitelist;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaCreatePrivacyGroup;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaDeletePrivacyGroup;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetPrivacyPrecompileAddress;
+import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetPrivateTransaction;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetTransactionCount;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaGetTransactionReceipt;
 import tech.pegasys.pantheon.ethereum.jsonrpc.internal.methods.privacy.EeaSendRawTransaction;
@@ -314,19 +317,18 @@ public class JsonRpcMethodsFactory {
           new AdminPeers(p2pNetwork));
     }
     if (rpcApis.contains(RpcApis.EEA)) {
+      final PrivateTransactionHandler privateTransactionHandler =
+          new PrivateTransactionHandler(privacyParameters);
+      final Enclave enclave = new Enclave(privacyParameters.getEnclaveUri());
       addMethods(
           enabledMethods,
-          new EeaGetTransactionReceipt(
-              blockchainQueries,
-              new Enclave(privacyParameters.getEnclaveUri()),
-              parameter,
-              privacyParameters),
+          new EeaGetTransactionReceipt(blockchainQueries, enclave, parameter, privacyParameters),
           new EeaSendRawTransaction(
-              blockchainQueries,
-              new PrivateTransactionHandler(privacyParameters),
-              transactionPool,
-              parameter),
-          new EeaGetTransactionCount(parameter, privacyParameters),
+              blockchainQueries, privateTransactionHandler, transactionPool, parameter),
+          new EeaGetTransactionCount(parameter, privateTransactionHandler),
+          new EeaGetPrivateTransaction(enclave, parameter, privacyParameters),
+          new EeaCreatePrivacyGroup(new Enclave(privacyParameters.getEnclaveUri()), parameter),
+          new EeaDeletePrivacyGroup(new Enclave(privacyParameters.getEnclaveUri()), parameter),
           new EeaGetPrivacyPrecompileAddress(privacyParameters));
     }
     return enabledMethods;

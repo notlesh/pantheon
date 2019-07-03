@@ -12,7 +12,7 @@
  */
 package tech.pegasys.pantheon;
 
-import tech.pegasys.pantheon.cli.EthNetworkConfig;
+import tech.pegasys.pantheon.cli.config.EthNetworkConfig;
 import tech.pegasys.pantheon.controller.PantheonController;
 import tech.pegasys.pantheon.crypto.SECP256K1.KeyPair;
 import tech.pegasys.pantheon.ethereum.ProtocolContext;
@@ -106,18 +106,21 @@ public class RunnerBuilder {
 
   private Vertx vertx;
   private PantheonController<?> pantheonController;
+
+  private NetworkingConfiguration networkingConfiguration = NetworkingConfiguration.create();
+  private Collection<BytesValue> bannedNodeIds = new ArrayList<>();
   private boolean p2pEnabled = true;
   private boolean discovery;
-  private EthNetworkConfig ethNetworkConfig;
   private String p2pAdvertisedHost;
   private int p2pListenPort;
   private NatMethod natMethod = NatMethod.NONE;
   private int maxPeers;
+  private EthNetworkConfig ethNetworkConfig;
+
   private JsonRpcConfiguration jsonRpcConfiguration;
   private GraphQLConfiguration graphQLConfiguration;
   private WebSocketConfiguration webSocketConfiguration;
   private Path dataDir;
-  private Collection<BytesValue> bannedNodeIds = new ArrayList<>();
   private MetricsConfiguration metricsConfiguration;
   private MetricsSystem metricsSystem;
   private Optional<PermissioningConfiguration> permissioningConfiguration = Optional.empty();
@@ -145,6 +148,12 @@ public class RunnerBuilder {
 
   public RunnerBuilder ethNetworkConfig(final EthNetworkConfig ethNetworkConfig) {
     this.ethNetworkConfig = ethNetworkConfig;
+    return this;
+  }
+
+  public RunnerBuilder networkingConfiguration(
+      final NetworkingConfiguration networkingConfiguration) {
+    this.networkingConfiguration = networkingConfiguration;
     return this;
   }
 
@@ -256,10 +265,7 @@ public class RunnerBuilder {
             .setMaxPeers(maxPeers)
             .setSupportedProtocols(subProtocols)
             .setClientId(PantheonInfo.version());
-    final NetworkingConfiguration networkConfig =
-        new NetworkingConfiguration()
-            .setRlpx(rlpxConfiguration)
-            .setDiscovery(discoveryConfiguration);
+    networkingConfiguration.setRlpx(rlpxConfiguration).setDiscovery(discoveryConfiguration);
 
     final PeerPermissionsBlacklist bannedNodes = PeerPermissionsBlacklist.create();
     bannedNodeIds.forEach(bannedNodes::add);
@@ -291,7 +297,7 @@ public class RunnerBuilder {
             DefaultP2PNetwork.builder()
                 .vertx(vertx)
                 .keyPair(keyPair)
-                .config(networkConfig)
+                .config(networkingConfiguration)
                 .peerPermissions(peerPermissions)
                 .metricsSystem(metricsSystem)
                 .supportedCapabilities(caps)
