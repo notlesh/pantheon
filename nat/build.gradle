@@ -33,7 +33,6 @@ dependencies {
   implementation 'org.jupnp:org.jupnp.support'
 
   runtime 'org.apache.logging.log4j:log4j-core'
-  runtime 'org.slf4j:slf4j-log4j12'
 
   // test dependencies.
   testImplementation project(path: ':ethereum:core', configuration: 'testArtifacts')
