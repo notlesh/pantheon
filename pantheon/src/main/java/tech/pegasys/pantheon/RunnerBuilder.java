@@ -82,7 +82,7 @@ import tech.pegasys.pantheon.ethereum.worldstate.WorldStateArchive;
 import tech.pegasys.pantheon.metrics.MetricsSystem;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsConfiguration;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsService;
-import tech.pegasys.pantheon.nat.upnp.NatMethod;
+import tech.pegasys.pantheon.nat.NatMethod;
 import tech.pegasys.pantheon.nat.upnp.UpnpNatManager;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 

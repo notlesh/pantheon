@@ -52,7 +52,7 @@ import tech.pegasys.pantheon.ethereum.permissioning.PermissioningConfiguration;
 import tech.pegasys.pantheon.ethereum.permissioning.SmartContractPermissioningConfiguration;
 import tech.pegasys.pantheon.metrics.StandardMetricCategory;
 import tech.pegasys.pantheon.metrics.prometheus.MetricsConfiguration;
-import tech.pegasys.pantheon.nat.upnp.NatMethod;
+import tech.pegasys.pantheon.nat.NatMethod;
 import tech.pegasys.pantheon.util.bytes.BytesValue;
 
 import java.io.File;

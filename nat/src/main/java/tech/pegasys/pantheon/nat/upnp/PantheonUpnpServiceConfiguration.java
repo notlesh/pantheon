@@ -225,5 +225,7 @@ class PantheonUpnpServiceConfiguration implements UpnpServiceConfiguration {
   }
 
   @Override
-  public void shutdown() {}
+  public void shutdown() {
+    executorService.shutdown();
+  }
 }
