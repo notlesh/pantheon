@@ -118,10 +118,6 @@ public class Runner implements AutoCloseable {
         pantheonController.getSynchronizer().stop();
       }
 
-      if (natManager.isPresent()) {
-        natManager.get().stop();
-      }
-
       networkRunner.stop();
       networkRunner.awaitStop();
 
@@ -129,6 +125,10 @@ public class Runner implements AutoCloseable {
       graphQLHttp.ifPresent(service -> waitForServiceToStop("graphQLHttp", service.stop()));
       websocketRpc.ifPresent(service -> waitForServiceToStop("websocketRpc", service.stop()));
       metrics.ifPresent(service -> waitForServiceToStop("metrics", service.stop()));
+
+      if (natManager.isPresent()) {
+        natManager.get().stop();
+      }
     } finally {
       try {
         vertx.close();
