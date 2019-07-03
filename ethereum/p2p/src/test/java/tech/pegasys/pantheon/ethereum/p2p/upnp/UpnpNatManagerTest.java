@@ -182,6 +182,6 @@ public final class UpnpNatManagerTest {
 
     listener.remoteDeviceAdded(mockedRegistry, device);
 
-    assertThat(upnpManager.getWANIPConnectionService()).isEqualTo(wanIpConnectionService);
+    assertThat(upnpManager.getWANIPConnectionService().join()).isEqualTo(wanIpConnectionService);
   }
 }

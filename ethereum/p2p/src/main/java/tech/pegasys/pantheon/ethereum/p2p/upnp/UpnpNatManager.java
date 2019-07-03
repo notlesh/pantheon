@@ -57,7 +57,7 @@ public class UpnpNatManager {
   // internally-managed future. external queries for IP addresses will be copy()ed from this.
   private CompletableFuture<String> externalIpQueryFuture = null;
 
-  private Map<String, RemoteService> recognizedServices;
+  private Map<String, CompletableFuture<RemoteService>> recognizedServices;
   private final List<PortMapping> forwardedPorts;
   private String discoveredOnLocalAddress = null;
 
@@ -90,7 +90,7 @@ public class UpnpNatManager {
 
     // prime our recognizedServices map so we can use its key-set later
     recognizedServices = new HashMap<>();
-    recognizedServices.put(SERVICE_TYPE_WAN_IP_CONNECTION, null);
+    recognizedServices.put(SERVICE_TYPE_WAN_IP_CONNECTION, new CompletableFuture<>());
 
     forwardedPorts = new ArrayList<>();
 
@@ -142,6 +142,10 @@ public class UpnpNatManager {
       LOG.warn("Caught exception while trying to release port forwards, ignoring", e);
     }
 
+    for (CompletableFuture<RemoteService> future : recognizedServices.values()) {
+      future.cancel(true);
+    }
+
     upnpService.getRegistry().removeListener(registryListener);
     upnpService.shutdown();
 
@@ -152,19 +156,19 @@ public class UpnpNatManager {
    * Returns the first of the discovered services of the given type, if any.
    *
    * @param type is the type descriptor of the desired service
-   * @return the first instance of the given type, or null if none
+   * @return a CompletableFuture that will provide the desired RemoteService when completed
    */
-  private synchronized RemoteService getService(final String type) {
+  private synchronized CompletableFuture<RemoteService> getService(final String type) {
     return recognizedServices.get(type);
   }
 
   /**
    * Get the discovered WANIPConnection service, if any.
    *
-   * @return the WANIPConnection Service if we have found it, or null.
+   * @return a CompletableFuture that will provide the WANIPConnection RemoteService when completed
    */
   @VisibleForTesting
-  synchronized RemoteService getWANIPConnectionService() {
+  synchronized CompletableFuture<RemoteService> getWANIPConnectionService() {
     if (!started) {
       throw new IllegalStateException(
           "Cannot call getWANIPConnectionService() when in stopped state");
@@ -198,27 +202,8 @@ public class UpnpNatManager {
    * @return future that will return the desired service once it is discovered, or null if the
    *     future is cancelled.
    */
-  private CompletableFuture<RemoteService> discoverService(final String serviceType) {
-
-    return CompletableFuture.supplyAsync(
-        () -> {
-
-          // wait until our thread is interrupted (assume future was cancelled)
-          // or we discover the service
-          while (!Thread.currentThread().isInterrupted()) {
-            RemoteService service = getService(serviceType);
-            if (null != service) {
-              return service;
-            } else {
-              try {
-                Thread.sleep(100);
-              } catch (InterruptedException e) {
-                // fall back through to "isInterrupted() check"
-              }
-            }
-          }
-          return null;
-        });
+  private synchronized CompletableFuture<RemoteService> discoverService(final String serviceType) {
+    return recognizedServices.get(serviceType);
   }
 
   /**
@@ -428,7 +413,9 @@ public class UpnpNatManager {
 
     return externalIpQueryFuture.thenCompose(
         address -> {
-          RemoteService service = getService(SERVICE_TYPE_WAN_IP_CONNECTION);
+          // note that this future is a dependency of externalIpQueryFuture, so it must be completed
+          // by now
+          RemoteService service = getService(SERVICE_TYPE_WAN_IP_CONNECTION).join();
 
           // at this point, we should have the local address we discovered the IGD on,
           // so we can prime the NewInternalClient field if it was omitted
@@ -506,10 +493,13 @@ public class UpnpNatManager {
 
     // if we haven't observed the WANIPConnection service yet, we should have no port forwards to
     // release
-    RemoteService service = getService(SERVICE_TYPE_WAN_IP_CONNECTION);
-    if (null == service) {
+    CompletableFuture<RemoteService> wanIPConnectionServiceFuture =
+        getService(SERVICE_TYPE_WAN_IP_CONNECTION);
+    if (!wanIPConnectionServiceFuture.isDone()) {
       return CompletableFuture.completedFuture(null);
     }
+
+    RemoteService service = wanIPConnectionServiceFuture.join();
 
     List<CompletableFuture<Void>> futures = new ArrayList<>();
 
@@ -594,13 +584,13 @@ public class UpnpNatManager {
       if (serviceTypes.contains(serviceType)) {
         synchronized (this) {
           // log a warning if we detect a second WANIPConnection service
-          RemoteService existingService = recognizedServices.get(serviceType);
-          if (null != existingService && service != existingService) {
+          CompletableFuture<RemoteService> existingFuture = recognizedServices.get(serviceType);
+          if (existingFuture.isDone()) {
             LOG.warn(
                 "Detected multiple WANIPConnection services on network. This may interfere with NAT circumvention.");
             continue;
           }
-          recognizedServices.put(serviceType, service);
+          existingFuture.complete(service);
         }
       }
     }
