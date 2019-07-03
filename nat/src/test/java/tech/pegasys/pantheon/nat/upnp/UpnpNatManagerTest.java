@@ -39,7 +39,6 @@ import org.jupnp.registry.Registry;
 import org.jupnp.registry.RegistryListener;
 import org.mockito.ArgumentCaptor;
 
-/** Tests for {@link tech.pegasys.pantheon.ethereum.p2p.upnp.UpnpNatManager}. */
 public final class UpnpNatManagerTest {
 
   private UpnpService mockedService;
