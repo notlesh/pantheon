@@ -187,13 +187,13 @@ public class DefaultP2PNetwork implements P2PNetwork {
       return;
     }
 
-    final int listeningPort = rlpxAgent.start().join();
-    final int discoveryPort = peerDiscoveryAgent.start(listeningPort).join();
-    setLocalNode(listeningPort, discoveryPort);
-
     if (natManager.isPresent()) {
       this.configureNatEnvironment();
     }
+
+    final int listeningPort = rlpxAgent.start().join();
+    final int discoveryPort = peerDiscoveryAgent.start(listeningPort).join();
+    setLocalNode(listeningPort, discoveryPort);
 
     peerBondedObserverId =
         OptionalLong.of(peerDiscoveryAgent.observePeerBondedEvents(this::handlePeerBondedEvent));
@@ -378,7 +378,7 @@ public class DefaultP2PNetwork implements P2PNetwork {
             .get()
             .requestPortForward(
                 this.config.getDiscovery().getBindPort(),
-                UpnpNatManager.Protocol.TCP,
+                UpnpNatManager.Protocol.UDP,
                 "pantheon-discovery");
         this.natManager
             .get()
