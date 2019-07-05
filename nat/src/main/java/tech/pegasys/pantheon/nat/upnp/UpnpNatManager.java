@@ -110,7 +110,8 @@ public class UpnpNatManager {
    */
   public synchronized void start() {
     if (started) {
-      throw new IllegalStateException("Cannot start already-started service");
+      LOG.warn("Attempt to start an already-started {}", getClass().getSimpleName());
+      return;
     }
 
     LOG.info("Starting UPnP Service");

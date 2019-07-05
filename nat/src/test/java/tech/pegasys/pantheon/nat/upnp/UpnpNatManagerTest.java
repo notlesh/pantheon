@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.notNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
@@ -78,24 +79,22 @@ public final class UpnpNatManagerTest {
   }
 
   @Test
-  public void stopThrowsWhenCalledBeforeStart() throws Exception {
+  public void stopDoesNothingWhenAlreadyStopped() throws Exception {
+    upnpManager.stop();
 
-    assertThatThrownBy(
-            () -> {
-              upnpManager.stop();
-            })
-        .isInstanceOf(IllegalStateException.class);
+    verifyNoMoreInteractions(mockedService);
   }
 
   @Test
-  public void startThrowsWhenAlreadyStarted() throws Exception {
+  public void startDoesNothingWhenAlreadyStarted() throws Exception {
     upnpManager.start();
 
-    assertThatThrownBy(
-            () -> {
-              upnpManager.start();
-            })
-        .isInstanceOf(IllegalStateException.class);
+    verify(mockedService).startup();
+    verify(mockedService).getRegistry();
+
+    upnpManager.start();
+
+    verifyNoMoreInteractions(mockedService);
   }
 
   @Test
